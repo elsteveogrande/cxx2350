@@ -1,0 +1,28 @@
+build/
+.vscode/
+random/
+.cache/
+.mypy_cache/
+*.o
+*.s
+*.elf
+*.bin
+*.bin.uf2
+*.dwo
+*.dwp
+!boot2.s
+priv/
+.foo
+
+
+# Added by cargo
+
+/target
+
+
+# Added by cargo
+#
+# already existing elements were commented out
+
+#/target
+old
