@@ -1,20 +1,7 @@
 #pragma once
 
-/*
-https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf
-https://developer.arm.com/documentation/100235/0100/The-Cortex-M33-Processor/Exception-model/Vector-table
-*/
-
-namespace rp2 {
-using u8    = unsigned char;
-using u16   = unsigned short;
-using u32   = unsigned long;
-using uv32  = u32 volatile;
-using uint  = u32;
-using uvint = uint volatile;
-using uptr  = u32*;
-typedef void (*vfunc)();
-} // namespace rp2
+#include "abi.h"
+#include "base.h"
 
 extern "C" {
 
@@ -34,24 +21,6 @@ extern rp2::uptr __buf_x_base;
 extern rp2::uptr __buf_x_end;
 extern rp2::uptr __buf_y_base;
 extern rp2::uptr __buf_y_end;
-
-// C/C++ ABI-specified functions
-
-inline void __aeabi_memcpy(rp2::u8* dest, rp2::u8 const* src, rp2::u32 n) {
-    for (rp2::u32 i = 0; i < n; i++) {
-        // Read from source and write into dest; the do-nothing `asm volatile`
-        // is only to separate the read and write, to prevent fusing them and optimizing
-        // into a "memcpy" operation involving a call to `__aeabi_memcpy`, the very thing
-        // we're trying to define.
-        rp2::u8 x = src[i];
-        // asm volatile("");  // XXX actually needed??
-        dest[i]   = x;
-    }
-}
-
-inline void __aeabi_memcpy4(rp2::u8* dest, rp2::u8 const* src, unsigned n) {
-    __aeabi_memcpy(dest, src, n);
-}
 
 } // extern "C"
 

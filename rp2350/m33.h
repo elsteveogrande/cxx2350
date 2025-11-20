@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "base.h"
 
 namespace rp2 {
 // 3.7. Cortex-M33 Processor
@@ -7,12 +7,12 @@ struct M33 {
     struct SysTick {
         enum class ClockSource { EXT_REF_CLK = 0, PROC_CLK = 1 };
         struct CSR {
-            unsigned enable  : 1; // 0
-            unsigned tickInt : 1; // 1
-            unsigned source  : 1; // 2
-            unsigned         : 13;
-            unsigned count   : 1; // 16
-            unsigned         : 15;
+            uvint enable  : 1; // 0
+            uvint tickInt : 1; // 1
+            uvint source  : 1; // 2
+            uint          : 13;
+            uvint count   : 1; // 16
+            uint          : 15;
         };
 
         CSR& csr = *(CSR*)(0xe000e010); // SysTick Control and Status Register
@@ -40,11 +40,11 @@ struct M33 {
     };
 
     struct ICSR {
-        unsigned                : 28;
-        unsigned pendingSysTick : 1; // 28
-        unsigned                : 1;
-        unsigned pendingSV      : 1; // 30
-        unsigned pendingNMI     : 1; // 31
+        uint                 : 28;
+        uvint pendingSysTick : 1; // 28
+        uint                 : 1;
+        uvint pendingSV      : 1; // 30
+        uvint pendingNMI     : 1; // 31
     };
 
     struct VTOR {
@@ -61,10 +61,10 @@ struct M33 {
     };
 
     struct CCR {
-        unsigned               : 3;
-        unsigned unalignedTrap : 1; // 3
-        unsigned div0Trap      : 1; // 4
-        unsigned               : 27;
+        uint                : 3;
+        uvint unalignedTrap : 1; // 3
+        uvint div0Trap      : 1; // 4
+        uint                : 27;
     };
 
     struct SHPR1 {

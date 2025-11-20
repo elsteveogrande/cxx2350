@@ -1,24 +1,24 @@
 #pragma once
-#include "common.h"
+#include "base.h"
 
 namespace rp2 {
 
 // Section 8.5
 struct Ticks {
     struct Control {
-        unsigned enabled : 1;  // 0
-        unsigned running : 1;  // 1
-        unsigned         : 30; // 31..2
+        uvint enabled : 1;  // 0
+        uvint running : 1;  // 1
+        uint          : 30; // 31..2
     };
 
     struct Cycles {
-        unsigned count : 8;  // 7..0
-        unsigned       : 24; // 31..24
+        uvint count : 8;  // 7..0
+        uint        : 24; // 31..24
     };
 
     struct Count {
-        unsigned count : 8;  // 7..0
-        unsigned       : 24; // 31..24
+        uvint count : 8;  // 7..0
+        uint        : 24; // 31..24
     };
 
     struct TickRegs {

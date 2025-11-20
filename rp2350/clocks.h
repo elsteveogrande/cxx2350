@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "base.h"
 
 namespace rp2 {
 
@@ -9,8 +9,8 @@ namespace rp2 {
 //      p530 (8.1.7) List of Registers
 struct Clocks {
     struct Div {
-        unsigned fraction : 16; // 15..0
-        unsigned integer  : 16; // 31..16
+        uvint fraction : 16; // 15..0
+        uvint integer  : 16; // 31..16
     };
 
     struct GPOut {
@@ -33,19 +33,19 @@ struct Clocks {
         };
 
         struct Control {
-            unsigned            : 5; // 4..0
+            uint                : 5; // 4..0
             AuxSource auxSource : 3; // 7..5
-            unsigned            : 2; // 9..8
-            unsigned kill       : 1; // 10
-            unsigned enable     : 1; // 11
-            unsigned dc50       : 1; // 12
-            unsigned            : 3; // 15..13
-            unsigned phase      : 2; // 17..16
-            unsigned            : 2; // 19..18
-            unsigned nudge      : 1; // 20
-            unsigned            : 7; // 27..21
-            unsigned enabled    : 1; // 28
-            unsigned            : 3; // 31..29
+            uint                : 2; // 9..8
+            uvint kill          : 1; // 10
+            uvint enable        : 1; // 11
+            uvint dc50          : 1; // 12
+            uint                : 3; // 15..13
+            uvint phase         : 2; // 17..16
+            uint                : 2; // 19..18
+            uvint nudge         : 1; // 20
+            uint                : 7; // 27..21
+            uvint enabled       : 1; // 28
+            uint                : 3; // 31..29
         };
 
         Control control;
@@ -77,9 +77,9 @@ struct Clocks {
 
         struct Control {
             Source source       : 2;  // 1..0
-            unsigned            : 3;  // 4..2
+            uint                : 3;  // 4..2
             AuxSource auxSource : 2;  // 6..5
-            unsigned            : 25; // 31..7
+            uint                : 25; // 31..7
         };
 
         Control  control;
@@ -109,9 +109,9 @@ struct Clocks {
 
         struct Control {
             Source source       : 1;  // 0
-            unsigned            : 4;  // 4..1
+            uint                : 4;  // 4..1
             AuxSource auxSource : 3;  // 7..5
-            unsigned            : 24; // 31..8
+            uint                : 24; // 31..8
         };
 
         Control  control;

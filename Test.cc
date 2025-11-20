@@ -4,6 +4,7 @@
 #include <rp2350/interrupts.h>
 #include <rp2350/m33.h>
 #include <rp2350/pads.h>
+#include <rp2350/panic.h>
 #include <rp2350/ticks.h>
 #include <rp2350/xoscpll.h>
 
@@ -55,10 +56,13 @@ using namespace rp2;
 
     gpio[25].control.funcSel = GPIO::FuncSel::SIO;
     sio.gpioOutEnbSet        = (1 << 25);
-    sio.gpioOutSet           = (1 << 25);
+    sio.gpioOutClr           = (1 << 25);
 
     while (true) {
         sio.gpioOutXor = (1 << 25);
-        for (auto i = 0; i < 10000; i++) { sys::Insns().nop(); }
+        for (uint i = 0; i < 250; i++) {
+            xosc.count = 12'000;
+            while (xosc.count) { sys::Insns().nop(); }
+        }
     }
 }

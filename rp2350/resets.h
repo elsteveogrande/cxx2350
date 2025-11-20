@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "base.h"
 #include "insns.h"
 
 namespace rp2 {

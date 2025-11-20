@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "base.h"
 
 namespace rp2 {
 
@@ -11,15 +11,15 @@ namespace rp2 {
 // These are for GPIO bank 0 (GPIOs 0 through 31) only.
 struct GPIO {
     struct Status {
-        unsigned           : 9; // 8..0
-        unsigned outToPad  : 1; // 9: output signal to pad after register override is applied
-        unsigned           : 3; // 12..10
-        unsigned oeToPad   : 1; // 13: output enable to pad after register override is applied
-        unsigned           : 3; // 16..14
-        unsigned inFromPad : 1; // 17: input signal from pad, before override is applied
-        unsigned           : 8; // 25..18
-        unsigned irqToProc : 1; // 26: interrupt to processors, after override is applied
-        unsigned           : 5; // 31..27
+        uint            : 9; // 8..0
+        uvint outToPad  : 1; // 9: output signal to pad after register override is applied
+        uint            : 3; // 12..10
+        uvint oeToPad   : 1; // 13: output enable to pad after register override is applied
+        uint            : 3; // 16..14
+        uvint inFromPad : 1; // 17: input signal from pad, before override is applied
+        uint            : 8; // 25..18
+        uvint irqToProc : 1; // 26: interrupt to processors, after override is applied
+        uint            : 5; // 31..27
     };
 
     enum class Override {
@@ -53,14 +53,14 @@ struct GPIO {
     };
 
     struct Control {
-        FuncSel funcSel  : 5;  // 4..0
-        unsigned         : 7;  // 11..5
-        unsigned outOver : 2;  // 13..12
-        unsigned oeOver  : 2;  // 15..14
-        unsigned inOver  : 2;  // 17..16
-        unsigned         : 10; // 27..18
-        unsigned irqOver : 2;  // 29..28
-        unsigned         : 2;  // 31..30
+        FuncSel funcSel : 5;  // 4..0
+        uint            : 7;  // 11..5
+        uvint outOver   : 2;  // 13..12
+        uvint oeOver    : 2;  // 15..14
+        uvint inOver    : 2;  // 17..16
+        uint            : 10; // 27..18
+        uvint irqOver   : 2;  // 29..28
+        uint            : 2;  // 31..30
     };
 
     struct GPIORegPair {
