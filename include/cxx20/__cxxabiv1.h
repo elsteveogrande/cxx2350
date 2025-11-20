@@ -2,8 +2,9 @@
 
 #include <cxx20/__base.h>
 
-namespace __cxxabiv1 {
+extern "C" {
+void __cxa_pure_virtual();
+void __cxa_deleted_virtual();
+}
 
-struct fnptr_t {};
-
-} // namespace __cxxabiv1
+namespace __cxxabiv1 {} // namespace __cxxabiv1
