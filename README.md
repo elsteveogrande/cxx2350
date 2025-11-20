@@ -177,48 +177,36 @@ https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf
 
 A list of errata related to this chip, so we're conscious of anything that might need to be addressed in code as workarounds.
 
-|                                 |                 | Ⓧ |
-|                                 |                 | Ⓧ |
-|                                 |                 | Ⓧ |
-|                                 |                 | Ⓧ |
-|                                 |                 | Ⓧ |
-|                                 |                 | Ⓧ |
-|                                 |                 | Ⓧ |
-|                                 |                 | Ⓧ |
-|                                 |                 | Ⓧ |
-|                                 |                 | Ⓧ |
-
-
-
-
-| ACCESSCTRL | RP2350-E3      |                                                 |
-| Bootrom    | RP2350-E10     |                                                 |
-|            | RP2350-E13     |                                                 |
-|            | RP2350-E14     |                                                 |
-|            | RP2350-E15     |                                                 |
-|            | RP2350-E18     |                                                 |
-|            | RP2350-E19     |                                                 |
-|            | RP2350-E20     |                                                 |
-|            | RP2350-E21     |                                                 |
-|            | RP2350-E22     |                                                 |
-|            | RP2350-E23     |                                                 |
-|            | RP2350-E24     |                                                 |
-|            | RP2350-E25     |                                                 |
-| Bus Fabric | RP2350-E27     |                                                 |
-| DMA        | RP2350-E5      |                                                 |
-|            | RP2350-E8      |                                                 |
-| GPIO       | RP2350-E9      |                                                 |
-| Hazard3    | RP2350-E4      |                                                 |
-|            | RP2350-E6      |                                                 |
-|            | RP2350-E7      |                                                 |
-| OTP        | RP2350-E16     |                                                 |
-|            | RP2350-E17     |                                                 |
-|            | RP2350-E28     |                                                 |
-| RCP        | RP2350-E26     |                                                 |
-| SIO        | RP2350-E1      |                                                 |
-|            | RP2350-E2      |                                                 |
-| XIP        | RP2350-E11     |                                                 |
-| USB        | RP2350-E12     |                                                 |
+|            |                | Short description                                                                             | Workarounds implemented |
+|------------|----------------|-----------------------------------------------------------------------------------------------|-------------------------|
+| ACCESSCTRL | RP2350-E3      | (RP2350 A2, QFN-60) , GPIO_NSMASK controls wrong PADS registers                               |
+| Bootrom    | RP2350-E10     | UF2 drag-and-drop doesn’t work with partition tables                                          | Not needed in `cxx2350`
+|            | RP2350-E13     | explicitly invalid IMAGE_DEF followed by a valid IMAGE_DEF (in that order) fails to boot      |
+|            | RP2350-E14     | bootrom connect_internal_flash() function always uses pin 0, ignoring FLASH_DEVINFO           |
+|            | RP2350-E15     | bootrom otp_access() function applies incorrect access permission                             |
+|            | RP2350-E18     | forever fail to boot if FLASH_PARTITION_SLOT_SIZE contains an invalid ECC                     |
+|            | RP2350-E19     | reboot hangs if certain bits are set in FRCE_OFF when rebooting.                              |
+|            | RP2350-E20     | ability to physically "glitch" the CPU at precise times, could cause unsigned code execution  |
+|            | RP2350-E21     | glitching could potentially extract sensitive data from OTP                                   |
+|            | RP2350-E22     | malformed "lollipop" block loop will cause a hang                                             |
+|            | RP2350-E23     | PICOBOOT GET_INFO command always returns zero                                                 |
+|            | RP2350-E24     | glitch , could cause unsigned code execution on a secured RP2350                              |
+|            | RP2350-E25     | LOAD_MAP that uses non-word sizes doesn’t cause an error                                      |
+| Bus Fabric | RP2350-E27     | Bus priority controls apply to wrong managers for APB and FASTPERI                            |
+| DMA        | RP2350-E5      | Interactions between CHAIN_TO and ABORT of active channels                                    |
+|            | RP2350-E8      | CHAIN_TO might not fire for zero-length transfers                                             |
+| GPIO       | RP2350-E9      | Increased leakage current on Bank 0 GPIO when pad input is enabled                            |
+| Hazard3    | RP2350-E4      | System Bus Access stalls indefinitely when core 1 is in clock-gated sleep                     |
+|            | RP2350-E6      | PMPCFGx RWX fields are transposed                                                             |
+|            | RP2350-E7      | U-mode doesn’t ignore mstatus.mie                                                             |
+| OTP        | RP2350-E16     | USB_OTP_VDD disruption can result in corrupt OTP row read data                                | Not needed in `cxx2350`
+|            | RP2350-E17     | Performing a guarded read on a single ECC OTP row causes a fault                              | Not needed in `cxx2350`
+|            | RP2350-E28     | OTP keys for pages 62/63 are applied to all lock words 0 through 63                           | Not needed in `cxx2350`
+| RCP        | RP2350-E26     | RCP random delays can create a side-channel                                                   |
+| SIO        | RP2350-E1      | Interpolator OVERF bits are broken by new right-rotate behaviour                              |
+|            | RP2350-E2      | SIO SPINLOCK writes are mirrored at +0x80 offset                                              |
+| XIP        | RP2350-E11     | XIP cache clean by set/way operation modifies the tag of dirty lines                          |
+| USB        | RP2350-E12     | Inadequate synchronisation of USB status signals                                              |
 
 
 
