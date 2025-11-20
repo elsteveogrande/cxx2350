@@ -121,7 +121,7 @@ struct Clocks {
     };
 
     struct Peri {
-        enum class PeriSource {
+        enum class AuxSource {
             CLK_SYS = 0,
             PLL_SYS = 1,
             PLL_USB = 2,
@@ -130,7 +130,21 @@ struct Clocks {
             GPIN0   = 5,
             GPIN1   = 6,
         };
-        // TODO
+
+        struct Control {
+            unsigned            : 5;
+            AuxSource auxSource : 3; // 7..5
+            unsigned            : 2;
+            unsigned kill       : 1;  // 10
+            unsigned enable     : 1;  // 11
+            unsigned            : 16; // 27..12
+            unsigned enabled    : 1;  // 28
+            unsigned            : 3;
+        };
+
+        Control  control;
+        Div      div;
+        uint32_t selected;
     };
 
     struct HSTX {
@@ -174,6 +188,7 @@ struct Clocks {
     GPOut gpOut3; // 0x40010024
     Ref   ref;    // 0x40010030
     Sys   sys;    // 0x4001003c
+    Peri  peri;   // 0x40010048
     // TODO all the others
 };
 inline auto& clocks = *(Clocks*)(0x40010000);
