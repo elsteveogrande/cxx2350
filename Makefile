@@ -1,11 +1,14 @@
 CXX=clang++
-OPENOCD=/opt/openocd/bin/openocd
+OPENOCD=openocd
 
-all: build/Test.elf
+all: builddirs build/examples/Blink.elf
 
-build/Test.elf: \
+builddirs:
+	mkdir -p build build/examples
+
+build/examples/Blink.elf: \
       layout.ld compile_flags.txt \
-      build/Test.cc.o build/librp2350.a
+      build/examples/Blink.cc.o build/librp2350.a
 	clang++                  \
 		-fuse-ld=lld           \
 		-target arm-none-eabi  \
@@ -17,9 +20,9 @@ build/Test.elf: \
 		-lrp2350               \
 		-ffreestanding         \
 		-o $@                  \
-		build/Test.cc.o
+		build/examples/Blink.cc.o
 
-build/Test.cc.o: Test.cc rp2350/*.h compile_flags.txt
+build/examples/Blink.cc.o: examples/Blink.cc rp2350/*.h compile_flags.txt
 	mkdir -p build
 	clang++ @compile_flags.txt -c -o $@ $<
 
@@ -49,25 +52,25 @@ start_openocd:
 	# A build from source worked better: get openocd from git, and do:
 	#   brew install automake jimtcl ; cd openocd ; ./bootstrap ; ./configure --prefix=/opt
 	#
-	$(OPENOCD)   								\
+	$(OPENOCD)                    \
 		-f interface/cmsis-dap.cfg  \
-		-f target/rp2350.cfg   			\
+		-f target/rp2350.cfg        \
 		-c "adapter speed 1000"
 
-flash: build/Test.elf
-	# Uploads .ELF directly (not bin / uf2) via openocd
-	echo "program build/Test.elf verify reset" | nc localhost 4444
+flash: build/examples/Blink.elf
+	echo "program build/examples/Blink.elf verify reset" | nc localhost 4444
 
-lldb: build/Test.elf
-	# platform select remote-gdb-server
-	# platform connect connect://localhost:3333
-	lldb build/Test.elf
+lldb: build/examples/Blink.elf
+	lldb \
+		build/examples/Blink.elf \
+		-O "platform select remote-gdb-server" \
+		-O "platform connect connect://localhost:3333"
 
 gdb:
 	gdb \
-		build/Test.elf \
+		build/examples/Blink.elf \
 		-ex "target extended-remote localhost:3333"
 
-dump: build/Test.elf
-	llvm-readelf --all $<  &&  llvm-objdump -ds --debug-file-directory=/foo $<
-
+dump: build/examples/Blink.elf
+	llvm-readelf --all $<
+	llvm-objdump -ds --debug-file-directory=/foo $<

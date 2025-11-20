@@ -10,8 +10,16 @@
 
 namespace rp2350::sys {
 
+// Need to define a couple of structures in our main file so that they are baked into the ELF.
+// These two are given `section` attributes so that they can be placed at specific flash
+// addresses (see `layout.ld`).
+
+// Interrupt vectors are needed for the thing to start; this will live at flash address
+// `0x10000000`. It can live in a different address but the default is fine.
 [[gnu::used]] [[gnu::retain]] [[gnu::section(".vec_table")]] ARMVectors const gARMVectors {};
 
+// Image definition is required for the RP2 bootloader; this will live at flash address
+// `0x10000100`.
 [[gnu::used]] [[gnu::retain]] [[gnu::section(
     ".image_def")]] constinit ImageDef2350ARM const gImageDef {};
 
@@ -19,6 +27,7 @@ namespace rp2350::sys {
 
 using namespace rp2350;
 
+// The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
     xosc.init();
     sysPLL.init150MHz();

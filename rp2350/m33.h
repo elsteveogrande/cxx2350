@@ -2,6 +2,7 @@
 #include "base.h"
 
 namespace rp2350 {
+
 // 3.7. Cortex-M33 Processor
 struct M33 {
     struct SysTick {
