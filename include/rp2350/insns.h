@@ -1,5 +1,6 @@
 #pragma once
-#include "base.h"
+
+#include <cxx20/cxxabi.h>
 
 namespace rp2350::sys {
 
@@ -33,8 +34,8 @@ struct ARMInsns {
     }
 
     [[gnu::always_inline]]
-    u32 ipsr() {
-        u32 ret;
+    uint32_t ipsr() {
+        uint32_t ret;
         asm volatile("mrs %0, ipsr" : "=r"(ret));
         return ret;
     }
@@ -45,9 +46,9 @@ struct Insns : ARMInsns {
     void disableIRQs() { cpsid(); }
     void enableIRQs() { cpsie(); }
 
-    uint currentInterrupt() {
+    unsigned currentInterrupt() {
         // Bits 0..8: Interrupt number (IRQs start at 16)
-        return uint(ipsr() & 0x1ff);
+        return unsigned(ipsr() & 0x1ff);
     }
 };
 #endif

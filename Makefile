@@ -22,7 +22,7 @@ build/examples/Blink.elf: \
 		-o $@                  \
 		build/examples/Blink.cc.o
 
-build/examples/Blink.cc.o: examples/Blink.cc rp2350/*.h compile_flags.txt
+build/examples/Blink.cc.o: examples/Blink.cc include/**/*.h compile_flags.txt
 	mkdir -p build
 	clang++ @compile_flags.txt -c -o $@ $<
 
@@ -30,7 +30,7 @@ build/librp2350.a: \
       build/faults.s.o
 	ar -r $@ $<
 
-build/%.cc.o: rp2350/%.cc rp2350/*.h compile_flags.txt
+build/%.cc.o: rp2350/%.cc include/**/*.h compile_flags.txt
 	mkdir -p build
 	clang++                    \
 	  @compile_flags.txt       \

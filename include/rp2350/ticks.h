@@ -1,24 +1,25 @@
 #pragma once
-#include "base.h"
+
+#include <cxx20/cxxabi.h>
 
 namespace rp2350 {
 
 // Section 8.5
 struct Ticks {
     struct Control {
-        uvint enabled : 1;  // 0
-        uvint running : 1;  // 1
-        uint          : 30; // 31..2
+        unsigned enabled : 1;  // 0
+        unsigned running : 1;  // 1
+        unsigned         : 30; // 31..2
     };
 
     struct Cycles {
-        uvint count : 8;  // 7..0
-        uint        : 24; // 31..24
+        unsigned count : 8;  // 7..0
+        unsigned       : 24; // 31..24
     };
 
     struct Count {
-        uvint count : 8;  // 7..0
-        uint        : 24; // 31..24
+        unsigned count : 8;  // 7..0
+        unsigned       : 24; // 31..24
     };
 
     struct TickRegs {

@@ -15,8 +15,7 @@ I don't particularly like using C, and the code itself is somewhat hard to read 
 This alternate SDK aims to provide a header-only representation to make integration
 as simple as possible.  It's C++-native so C++ structs and features make things a little easier (if you like C++).
 
-See `Test.cc` and `Makefile` to see how this all comes together, and how you can integrate
-this into your projects.
+See the `examples/` directory and `Makefile` to see how this all comes together, and how you can integrate this into your projects.
 
 
 ## Requirements
@@ -53,11 +52,11 @@ To debug:
 * Currently there's a bug (?) where `make flash`, when trying to upload the ELF via openocd
   will fail with `stalled AP operation, issuing ABORT`, `DP initialisation failed`.
   To work around this I remove power from the target board, reconnect power
-  while holding the `BOOTSEL` button.
+  while holding the `BOOTSEL` button.  Inconvenient, and only sometimes works.
 * Right now this only supports the Clang toolchain
 * I want to implement write-combining on hardware registers,
   so that each individual field within a register doesn't become its own
-  `str` instruction (which eats code bytes as well as cycles)
+  read-then-AND-some-bits-OR-more-bits-then-write instruction sequence (which eats code bytes as well as cycles)
 
 The following section lists things I consider complete / partially complete / TODO.
 
@@ -91,10 +90,15 @@ Though one day it would be nice to have something resembling `array` or `vector`
 |                |              | `vtable`s (for virtual methods), `typeinfo`         | Ⓧ |
 |                | `unwind.h`   | Stack unwinding                                     | Ⓧ |
 |                | `exception.h`| exceptions                                          | Ⓧ |
+| Thread-locals  |              | per-core `thread_local` objs                        | Ⓧ |
 |                |              |                                                     | Ⓧ |
-| "Standard" lib | `cxx.h`      | Semi-resembling a dumbed-down `std::`               | Ⓧ |
-|                |              |                                                     | Ⓧ |
-|                |              |                                                     | Ⓧ |
+| "Standard" lib | `cxx.h`      | Semi-resembling a dumbed-down `std::`.  Essentials: | Ⓧ |
+|                |              | `array` (a C array with compile-time-known size)    | Ⓧ |
+|                |              | `vector` (a resizable array)                        | Ⓧ |
+|                |              | `map` (an ordered map, likely binary tree), + `set` | Ⓧ |
+|                |              | `unordered_map` (+ `_set`); i.e. hashtables         | Ⓧ |
+|                |              | `string` and `string_view`                          | Ⓧ |
+|                |              | polymorphic (`pmr`) `allocator`                     | Ⓧ |
 
 
 ## RP2350 hardware

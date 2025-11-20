@@ -1,17 +1,19 @@
 #pragma once
-#include "common.h"
-#include "insns.h"
+
+#include <cxx20/cxxabi.h>
+#include <rp2350/common.h>
+#include <rp2350/insns.h>
 
 namespace rp2350::sys {
 
 inline void reset() {
     // Clear BSS
-    auto* bss    = reinterpret_cast<u32*>(__bss_base);
-    auto* bssEnd = reinterpret_cast<u32*>(__bss_end);
+    auto* bss    = reinterpret_cast<uint32_t*>(__bss_base);
+    auto* bssEnd = reinterpret_cast<uint32_t*>(__bss_end);
     for (; bss < bssEnd; ++bss) { *bss = 0; }
 
     // Clear words just past our stack frame, to avoid "corrupt stack?" in gcc
-    // auto* stackTop = (u32*)(__reset_sp);
+    // auto* stackTop = (uint32_t*)(__reset_sp);
     // stackTop[0]    = 0;
     // stackTop[1]    = 0;
 
@@ -46,7 +48,7 @@ inline void sysTick() {
     // TODO: a 64-bit counter in hardware for sys time
 }
 
-constexpr uint const kIRQHandlers = 4;
+constexpr unsigned const kIRQHandlers = 4;
 
 // Initially null.  Can add more; update `ARMVectors` if increasing
 inline vfunc irqHandlers[kIRQHandlers] {};
@@ -62,7 +64,7 @@ inline void irq() {
 }
 
 struct ARMVectors {
-    uint resetSP         = 0x20000c00;                  // 0 (__reset_sp)
+    unsigned resetSP     = 0x20000c00;                  // 0 (__reset_sp)
     void (*reset)()      = (::rp2350::sys::reset);      // 1
     void (*nmi)()        = (::rp2350::sys::nmi);        // 2
     void (*hardFault)()  = (::rp2350::sys::hardFault);  // 3

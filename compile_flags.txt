@@ -18,7 +18,14 @@ thumbv8m.main-none-eabi
 -nostdlib
 -g
 -gsplit-dwarf
--I.
+-I
+.
+-I
+./include
+-isystem
+.
+-isystem
+./include
 -fno-builtin
 -Og
 -fno-omit-frame-pointer

@@ -1,3 +1,4 @@
+#include <cxx20/cxxabi.h>
 #include <rp2350/clocks.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
@@ -69,7 +70,7 @@ using namespace rp2350;
 
     while (true) {
         sio.gpioOutXor = (1 << 25);
-        for (uint i = 0; i < 250; i++) {
+        for (unsigned i = 0; i < 250; i++) {
             xosc.count = 12'000;
             while (xosc.count) { sys::Insns().nop(); }
         }

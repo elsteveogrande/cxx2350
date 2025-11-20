@@ -1,5 +1,6 @@
 #pragma once
-#include "base.h"
+
+#include <cxx20/cxxabi.h>
 
 namespace rp2350 {
 
@@ -8,105 +9,105 @@ struct M33 {
     struct SysTick {
         enum class ClockSource { EXT_REF_CLK = 0, PROC_CLK = 1 };
         struct CSR {
-            uvint enable  : 1; // 0
-            uvint tickInt : 1; // 1
-            uvint source  : 1; // 2
-            uint          : 13;
-            uvint count   : 1; // 16
-            uint          : 15;
+            unsigned enable  : 1; // 0
+            unsigned tickInt : 1; // 1
+            unsigned source  : 1; // 2
+            unsigned         : 13;
+            unsigned count   : 1; // 16
+            unsigned         : 15;
         };
 
-        CSR& csr = *(CSR*)(0xe000e010); // SysTick Control and Status Register
-        u32& rvr = *(u32*)(0xe000e014); // SysTick Reload Value Register
+        CSR&      csr = *(CSR*)(0xe000e010);      // SysTick Control and Status Register
+        uint32_t& rvr = *(uint32_t*)(0xe000e014); // SysTick Reload Value Register
     };
 
     struct NVIC {
-        u32& ser0 = *(u32*)(0xe000e100); // Interrupt (0..31) Set Enable Registers
-        u32& cer0 = *(u32*)(0xe000e180); // Interrupt (0..31) Clear Enable Registers
-        u32& spr0 = *(u32*)(0xe000e200); // Interrupt (0..31) Set Pending Registers
-        u32& cpr0 = *(u32*)(0xe000e280); // Interrupt (0..31) Clear Pending Registers
+        uint32_t& ser0 = *(uint32_t*)(0xe000e100); // Interrupt (0..31) Set Enable Registers
+        uint32_t& cer0 = *(uint32_t*)(0xe000e180); // Interrupt (0..31) Clear Enable Registers
+        uint32_t& spr0 = *(uint32_t*)(0xe000e200); // Interrupt (0..31) Set Pending Registers
+        uint32_t& cpr0 = *(uint32_t*)(0xe000e280); // Interrupt (0..31) Clear Pending Registers
 
-        void enableIRQ(u8 irq) { ser0 = u32(1) << irq; }
-        void disableIRQ(u8 irq) { cer0 = u32(1) << irq; }
-        void triggerIRQ(u8 irq) { spr0 = u32(1) << irq; }
-        void clearPendIRQ(u8 irq) { cpr0 = u32(1) << irq; }
+        void enableIRQ(uint8_t irq) { ser0 = uint32_t(1) << irq; }
+        void disableIRQ(uint8_t irq) { cer0 = uint32_t(1) << irq; }
+        void triggerIRQ(uint8_t irq) { spr0 = uint32_t(1) << irq; }
+        void clearPendIRQ(uint8_t irq) { cpr0 = uint32_t(1) << irq; }
     };
 
     struct ACTLR {
-        uvint v;
+        unsigned v;
     };
 
     struct CPUID {
-        uvint v;
+        unsigned v;
     };
 
     struct ICSR {
-        uint                 : 28;
-        uvint pendingSysTick : 1; // 28
-        uint                 : 1;
-        uvint pendingSV      : 1; // 30
-        uvint pendingNMI     : 1; // 31
+        unsigned                : 28;
+        unsigned pendingSysTick : 1; // 28
+        unsigned                : 1;
+        unsigned pendingSV      : 1; // 30
+        unsigned pendingNMI     : 1; // 31
     };
 
     struct VTOR {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct AIRCR {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct SCR {
         // TODO
-        uvint v;
+        unsigned v;
     };
 
     struct CCR {
-        uint                : 3;
-        uvint unalignedTrap : 1; // 3
-        uvint div0Trap      : 1; // 4
-        uint                : 27;
+        unsigned               : 3;
+        unsigned unalignedTrap : 1; // 3
+        unsigned div0Trap      : 1; // 4
+        unsigned               : 27;
     };
 
     struct SHPR1 {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct SHPR2 {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct SHPR3 {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct SHCSR {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct CFSR {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct HFSR {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct MMFAR {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct BFAR {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct CPACR {
         // TODO
-        uvint v;
+        unsigned v;
     };
     struct NSACR {
         // TODO
-        uvint v;
+        unsigned v;
     };
 
     SysTick sysTick;
