@@ -1,7 +1,7 @@
 #pragma once
 #include "base.h"
 
-namespace rp2 {
+namespace rp2350 {
 
 // Section 8.5
 struct Ticks {
@@ -36,4 +36,4 @@ struct Ticks {
 };
 inline auto& ticks = *(Ticks*)(0x40108000);
 
-} // namespace rp2
+} // namespace rp2350

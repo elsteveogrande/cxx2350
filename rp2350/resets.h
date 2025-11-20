@@ -2,7 +2,7 @@
 #include "base.h"
 #include "insns.h"
 
-namespace rp2 {
+namespace rp2350 {
 
 // Section 7.5, Subsystem Resets
 // https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf
@@ -84,10 +84,10 @@ struct Resets {
         u32 bits = u32(_bit);
         if (resets & bits || (resetDone & bits) != bits) {
             resets &= ~bits;
-            while (wait && ((resetDone & bits) != bits)) { rp2::sys::nop(); }
+            while (wait && ((resetDone & bits) != bits)) { rp2350::sys::nop(); }
         }
     }
 };
 inline auto& resets = *(Resets*)(0x40020000);
 
-} // namespace rp2
+} // namespace rp2350

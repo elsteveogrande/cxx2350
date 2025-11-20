@@ -2,7 +2,7 @@
 #include "common.h"
 #include "insns.h"
 
-namespace rp2::sys {
+namespace rp2350::sys {
 
 inline void reset() {
     // Clear BSS
@@ -62,26 +62,26 @@ inline void irq() {
 }
 
 struct ARMVectors {
-    uint resetSP         = 0x20000c00;               // 0 (__reset_sp)
-    void (*reset)()      = (::rp2::sys::reset);      // 1
-    void (*nmi)()        = (::rp2::sys::nmi);        // 2
-    void (*hardFault)()  = (::rp2::sys::hardFault);  // 3
-    void (*memManage)()  = (::rp2::sys::memManage);  // 4
-    void (*busFault)()   = (::rp2::sys::busFault);   // 5
-    void (*usageFault)() = (::rp2::sys::usageFault); // 6
-    void (*_unknown07)() = (nullptr);                // 7
-    void (*_unknown08)() = (nullptr);                // 8
-    void (*_unknown09)() = (nullptr);                // 9
-    void (*_unknown0A)() = (nullptr);                // 10
-    void (*svCall)()     = (::rp2::sys::svCall);     // 11
-    void (*debugMon)()   = (::rp2::sys::debugMon);   // 12
-    void (*_unknown0B)() = (nullptr);                // 13
-    void (*pendingSV)()  = (::rp2::sys::pendingSV);  // 14
-    void (*sysTick)()    = (::rp2::sys::sysTick);    // 15
-    void (*irq00)()      = (::rp2::sys::irq);
-    void (*irq01)()      = (::rp2::sys::irq);
-    void (*irq02)()      = (::rp2::sys::irq);
-    void (*irq03)()      = (::rp2::sys::irq);
+    uint resetSP         = 0x20000c00;                  // 0 (__reset_sp)
+    void (*reset)()      = (::rp2350::sys::reset);      // 1
+    void (*nmi)()        = (::rp2350::sys::nmi);        // 2
+    void (*hardFault)()  = (::rp2350::sys::hardFault);  // 3
+    void (*memManage)()  = (::rp2350::sys::memManage);  // 4
+    void (*busFault)()   = (::rp2350::sys::busFault);   // 5
+    void (*usageFault)() = (::rp2350::sys::usageFault); // 6
+    void (*_unknown07)() = (nullptr);                   // 7
+    void (*_unknown08)() = (nullptr);                   // 8
+    void (*_unknown09)() = (nullptr);                   // 9
+    void (*_unknown0A)() = (nullptr);                   // 10
+    void (*svCall)()     = (::rp2350::sys::svCall);     // 11
+    void (*debugMon)()   = (::rp2350::sys::debugMon);   // 12
+    void (*_unknown0B)() = (nullptr);                   // 13
+    void (*pendingSV)()  = (::rp2350::sys::pendingSV);  // 14
+    void (*sysTick)()    = (::rp2350::sys::sysTick);    // 15
+    void (*irq00)()      = (::rp2350::sys::irq);
+    void (*irq01)()      = (::rp2350::sys::irq);
+    void (*irq02)()      = (::rp2350::sys::irq);
+    void (*irq03)()      = (::rp2350::sys::irq);
 };
 
-} // namespace rp2::sys
+} // namespace rp2350::sys

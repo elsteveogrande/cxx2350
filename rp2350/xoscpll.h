@@ -3,7 +3,7 @@
 #include "insns.h"
 #include "resets.h"
 
-namespace rp2 {
+namespace rp2350 {
 
 // Section 8.2, Crystal Oscillator (XOSC)
 struct XOSC {
@@ -58,7 +58,7 @@ struct XOSC {
         startup           = {.delay = 500, .x4 = 1}; // around 40-50ms
         control.enable    = Control::Enable::kEnable;
         dormant.code      = Dormant::Code::kWake;
-        while (!(status.stable)) { rp2::sys::nop(); }
+        while (!(status.stable)) { rp2350::sys::nop(); }
     }
 };
 inline auto& xosc = *(XOSC*)(0x40048000);
@@ -114,7 +114,7 @@ struct PLL {
         fbDiv           = fbd;
         powerDown.pd    = false;
         powerDown.vcoPD = false;
-        while (!cs.lock) { rp2::sys::nop(); } // wait for LOCK
+        while (!cs.lock) { rp2350::sys::nop(); } // wait for LOCK
 
         prim.postDiv1       = div1;
         prim.postDiv2       = div2;
@@ -125,4 +125,4 @@ struct PLL {
 };
 inline auto& sysPLL = *(PLL*)(0x40050000);
 
-} // namespace rp2
+} // namespace rp2350

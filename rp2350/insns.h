@@ -1,7 +1,7 @@
 #pragma once
 #include "base.h"
 
-namespace rp2::sys {
+namespace rp2350::sys {
 
 #if defined(__arm__)
 struct ARMInsns {
@@ -57,4 +57,4 @@ inline void nop() {
     Insns {}.nop();
 }
 
-} // namespace rp2::sys
+} // namespace rp2350::sys

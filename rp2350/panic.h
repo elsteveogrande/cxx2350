@@ -1,7 +1,7 @@
 #pragma once
 #include "base.h"
 
-namespace rp2::sys {
+namespace rp2350::sys {
 struct PanicContext {
     u32 sp;
     u32 r4;
@@ -120,4 +120,4 @@ inline void defaultPanic(PanicContext const& cx) {
     //   __builtin_unreachable();
 }
 
-} // namespace rp2::sys
+} // namespace rp2350::sys

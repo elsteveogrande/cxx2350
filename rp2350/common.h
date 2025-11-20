@@ -9,22 +9,22 @@ extern "C" {
 void _start();
 
 // Defined in the linker script
-extern rp2::uptr __vec_table;
-extern rp2::uptr __reset_sp;
-extern rp2::uptr __init_array_base;
-extern rp2::uptr __init_array_end;
-extern rp2::uptr __bss_base;
-extern rp2::uptr __bss_end;
-extern rp2::uptr __heap_base;
-extern rp2::uptr __heap_end;
-extern rp2::uptr __buf_x_base;
-extern rp2::uptr __buf_x_end;
-extern rp2::uptr __buf_y_base;
-extern rp2::uptr __buf_y_end;
+extern rp2350::uptr __vec_table;
+extern rp2350::uptr __reset_sp;
+extern rp2350::uptr __init_array_base;
+extern rp2350::uptr __init_array_end;
+extern rp2350::uptr __bss_base;
+extern rp2350::uptr __bss_end;
+extern rp2350::uptr __heap_base;
+extern rp2350::uptr __heap_end;
+extern rp2350::uptr __buf_x_base;
+extern rp2350::uptr __buf_x_end;
+extern rp2350::uptr __buf_y_base;
+extern rp2350::uptr __buf_y_end;
 
 } // extern "C"
 
-namespace rp2::sys {
+namespace rp2350::sys {
 
 // Image definition [IMAGE_DEF]: section 5.9, "Metadata Block Details".
 struct [[gnu::packed]] ImageDef2350ARM {
@@ -39,4 +39,4 @@ struct [[gnu::packed]] ImageDef2350ARM {
     u32 end       = 0xab123579; // End magic
 };
 
-} // namespace rp2::sys
+} // namespace rp2350::sys

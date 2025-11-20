@@ -1,7 +1,7 @@
 #pragma once
 #include "base.h"
 
-namespace rp2 {
+namespace rp2350 {
 
 struct PadsBank0 {
     struct Voltage {
@@ -39,4 +39,4 @@ struct PadsBank0 {
 };
 inline auto& padsBank0 = *(PadsBank0*)(0x40038000);
 
-} // namespace rp2
+} // namespace rp2350

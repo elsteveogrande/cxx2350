@@ -8,16 +8,16 @@
 #include <rp2350/ticks.h>
 #include <rp2350/xoscpll.h>
 
-namespace rp2::sys {
+namespace rp2350::sys {
 
 [[gnu::used]] [[gnu::retain]] [[gnu::section(".vec_table")]] ARMVectors const gARMVectors {};
 
 [[gnu::used]] [[gnu::retain]] [[gnu::section(
     ".image_def")]] constinit ImageDef2350ARM const gImageDef {};
 
-} // namespace rp2::sys
+} // namespace rp2350::sys
 
-using namespace rp2;
+using namespace rp2350;
 
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
     xosc.init();

@@ -1,7 +1,7 @@
 #pragma once
 #include "base.h"
 
-namespace rp2 {
+namespace rp2350 {
 
 // GPIO and SIO
 
@@ -110,4 +110,4 @@ struct SIO {
 };
 inline auto& sio = *(SIO*)(0xd0000000);
 
-} // namespace rp2
+} // namespace rp2350

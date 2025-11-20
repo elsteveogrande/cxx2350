@@ -1,7 +1,7 @@
 #pragma once
 #include "base.h"
 
-namespace rp2 {
+namespace rp2350 {
 // 3.7. Cortex-M33 Processor
 struct M33 {
     struct SysTick {
@@ -130,4 +130,4 @@ struct M33 {
 };
 inline M33 m33;
 
-} // namespace rp2
+} // namespace rp2350

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace rp2 {
+namespace rp2350 {
 
 using u8  = unsigned char;
 using u16 = unsigned short;
@@ -13,4 +13,4 @@ using uvint = uint volatile;
 using uptr = u32*;
 typedef void (*vfunc)();
 
-} // namespace rp2
+} // namespace rp2350

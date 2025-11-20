@@ -1,7 +1,7 @@
 #pragma once
 #include "base.h"
 
-namespace rp2 {
+namespace rp2350 {
 
 // Chapter 8, Clocks
 // https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf
@@ -177,4 +177,4 @@ struct Clocks {
 };
 inline auto& clocks = *(Clocks*)(0x40010000);
 
-} // namespace rp2
+} // namespace rp2350
