@@ -1,12 +1,23 @@
 CXX=clang++
 OPENOCD=openocd
 
-all: build/examples/Blink.elf
+build/librp2350.a: build/faults.s.o
+	ar -r $@ $<
 
-build/examples/Blink.elf: \
-      layout.ld compile_flags.txt \
-      build/examples/Blink.cc.o build/librp2350.a
+build/faults.s.o: include/rp2350/faults.s
+	mkdir -p build build/examples
+	clang++ @compile_flags.txt -xassembler -c -o $@ $<
+
+clean:
+	rm -rf build/
+
+# Examples
+
+build/examples/%.elf: \
+      examples/%.cc layout.ld compile_flags.txt build/librp2350.a
+	mkdir -p build build/examples
 	clang++                  \
+		@compile_flags.txt     \
 		-fuse-ld=lld           \
 		-target arm-none-eabi  \
 		-Wl,-T,layout.ld       \
@@ -17,27 +28,9 @@ build/examples/Blink.elf: \
 		-lrp2350               \
 		-ffreestanding         \
 		-o $@                  \
-		build/examples/Blink.cc.o
+		$<
 
-build/examples/Blink.cc.o: examples/Blink.cc include/**/*.h compile_flags.txt
-	mkdir -p build build/examples
-	clang++ @compile_flags.txt -c -o $@ $<
-
-build/librp2350.a: build/faults.s.o
-	ar -r $@ $<
-
-# build/%.cc.o: rp2350/%.cc include/**/*.h compile_flags.txt
-# 	clang++                    \
-# 	  @compile_flags.txt       \
-# 	  -Wunused -Werror=unused  \
-# 	  -c -o $@ $<
-
-build/faults.s.o: include/rp2350/faults.s
-	mkdir -p build build/examples
-	clang++ @compile_flags.txt -xassembler -c -o $@ $<
-
-clean:
-	rm -rf build/
+# Programming flash
 
 start_openocd:
 	# See "Debug with a second Pico or Pico 2" here:
@@ -52,18 +45,19 @@ start_openocd:
 		-f target/rp2350.cfg        \
 		-c "adapter speed 1000"
 
+# (See also `flash.sh`)
 flash: build/examples/Blink.elf
-	echo "program build/examples/Blink.elf verify reset" | nc localhost 4444
+	echo "program $< verify reset" | nc localhost 4444
+
+# Debugging etc.
 
 lldb: build/examples/Blink.elf
-	lldb \
-		build/examples/Blink.elf \
+	lldb $< \
 		-O "platform select remote-gdb-server" \
 		-O "platform connect connect://localhost:3333"
 
 gdb:
-	gdb \
-		build/examples/Blink.elf \
+	gdb $< \
 		-ex "target extended-remote localhost:3333"
 
 dump: build/examples/Blink.elf

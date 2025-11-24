@@ -151,12 +151,12 @@ struct UART {
     // uint32_t pCell2;          // 0xff8
     // uint32_t pCell3;          // 0xffc
 
-    void init() {
-        // TODO take parameters.  For now hardcode 115200 8/N/1
+    void init(uint32_t baud = 115200) {
+        // TODO take parameters.  For now hardcode 8/N/1
         // TODO understand what's going on here.  Mostly a copy of uart_set_baudrate on PDF p973 or:
         // https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/hardware_uart/uart.c#L155-L180
         // or: https://developer.arm.com/documentation/ddi0183/latest/
-        uint32_t div   = (8 * 150000000 / 115200) + 1;
+        uint32_t div   = ((8 * 150000000) / baud) + 1;
         uint32_t dint  = div >> 7;
         uint32_t dfrac = (div & 0x7f) >> 1;
         intBaud.div    = dint;

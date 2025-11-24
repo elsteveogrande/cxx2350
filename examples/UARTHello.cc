@@ -8,6 +8,7 @@
 #include <rp2350/panic.h>
 #include <rp2350/resets.h>
 #include <rp2350/ticks.h>
+#include <rp2350/uart.h>
 #include <rp2350/xoscpll.h>
 
 namespace rp2350::sys {
@@ -75,13 +76,37 @@ template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SI
     initGPIOOutput<25>();     // config LED
     sio.gpioOutSet = 1 << 25; // turn it on
 
+    initGPIOOutput<0>(GPIO::FuncSel<0>::UART0TX);
+    initGPIOOutput<1>(GPIO::FuncSel<1>::UART0RX);
+
+    update(&clocks.peri.control, [&](auto& _) {
+        _->auxSource = Clocks::Peri::AuxSource::PLL_SYS;
+        _->kill      = false;
+        _->enable    = true;
+    });
+
+    clocks.peri.div = {.fraction = 0, .integer = 1};
+
+    resets.reset(Resets::Bit::UART0);
+    resets.unreset(Resets::Bit::UART0);
+    uart0.init(9600);
+
+    char buffer[256];
+    memcpy(
+        buffer,
+        "hello world hello world hello world hello world hello world hello world hello world hello "
+        "world hello world hello world hello world hello world hello world hello world hello world "
+        "hello world hello world hello world hello world hello world hello 0123456789",
+        sizeof(buffer));
+
+    uint8_t index = 0; // index always fits in buffer
+
     while (true) {
-        // delay: 250 * (12k / 12MHz) -> 250ms
-        for (unsigned i = 0; i < 250; i++) {
-            xosc.count = 12'000;
-            while (xosc.count) { sys::Insns().nop(); }
-        }
-        // Toggle the little LED
-        sio.gpioOutXor = (1 << 25);
+        // delay: (12k / 12MHz) -> 1ms
+        xosc.count = 12'000;
+        while (xosc.count) { sys::Insns().nop(); }
+
+        // Transmit a character
+        uart0.data.data = buffer[index++];
     }
 }
