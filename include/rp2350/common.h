@@ -8,18 +8,11 @@ extern "C" {
 void _start();
 
 // Defined in the linker script
-extern void* __vec_table;
 extern void* __reset_sp;
-extern void* __init_array_base;
-extern void* __init_array_end;
 extern void* __bss_base;
 extern void* __bss_end;
-extern void* __heap_base;
-extern void* __heap_end;
-extern void* __buf_x_base;
-extern void* __buf_x_end;
-extern void* __buf_y_base;
-extern void* __buf_y_end;
+extern void* __init_array_base;
+extern void* __init_array_end;
 
 } // extern "C"
 

@@ -14,6 +14,11 @@ struct ARMInsns {
     }
 
     [[gnu::always_inline]]
+    void breakpoint() {
+        asm volatile("bkpt 0" : : : "memory");
+    }
+
+    [[gnu::always_inline]]
     void wfi() {
         asm volatile("wfi");
     }

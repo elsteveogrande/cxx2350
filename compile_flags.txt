@@ -29,6 +29,5 @@ thumbv8m.main-none-eabi
 -fno-builtin
 -Og
 -fno-omit-frame-pointer
--mno-omit-leaf-frame-pointer
 -ffreestanding
 -mno-unaligned-access

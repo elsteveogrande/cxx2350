@@ -31,4 +31,11 @@ inline void* memcpy(void* dst_, void const* src_, size_t n) {
     return dst_;
 }
 
+inline void* memset(void* dst_, int c_, size_t len) {
+    auto* dst = reinterpret_cast<char*>(dst_);
+    auto  c   = char(c_);
+    for (size_t i = 0; i < len; i++) { dst[i] = c; }
+    return dst_;
+}
+
 } // extern "C" ends

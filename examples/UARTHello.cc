@@ -34,7 +34,7 @@ template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SI
     Update u {&padsBank0.gpio[I]};
     u->slewFast             = true;
     u->drive                = PadsBank0::Drive::k12mA;
-    u->inputEnable          = false;
+    u->inputEnable          = true;
     u->outputDisable        = false;
     u->isolation            = false;
     gpio[I].control.funcSel = funcSel;
@@ -42,8 +42,23 @@ template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SI
     sio.gpioOutClr          = (1 << I);
 }
 
+char    buffer[256];
+uint8_t bufIndex = 0; // always fits in buffer
+
+__attribute__((optnone)) void uart0IRQ() {
+    auto wrIndex = bufIndex;
+    while (!uart0.flags.rxEmpty) { buffer[wrIndex++] = uart0.data.data; }
+    while (!uart0.flags.txFull) { uart0.data.data = buffer[bufIndex++]; }
+    update(&uart0.intClear, [](auto& _) {
+        _->tx = true;
+        _->rx = true;
+        _->rt = true;
+    });
+}
+
 // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
+    sys::initInterrupts();
     xosc.init();
     sysPLL.init150MHz();
 
@@ -63,12 +78,12 @@ template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SI
     ticks.proc1.cycles.count    = 12;
     ticks.proc1.control.enabled = true;
 
-    m33.ccr.unalignedTrap = true;
-    m33.ccr.div0Trap      = true;
+    m33.ccr().unalignedTrap = true;
+    m33.ccr().div0Trap      = true;
 
-    m33.sysTick.rvr         = 1000;
-    m33.sysTick.csr.enable  = 1;
-    m33.sysTick.csr.tickInt = 1;
+    m33.rvr()         = 1000;
+    m33.csr().enable  = 1;
+    m33.csr().tickInt = 1;
 
     resets.unreset(Resets::Bit::PADSBANK0);
     resets.unreset(Resets::Bit::IOBANK0);
@@ -87,26 +102,26 @@ template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SI
 
     clocks.peri.div = {.fraction = 0, .integer = 1};
 
+    sys::irqHandlers[uart0.irqn()] = uart0IRQ;
     resets.reset(Resets::Bit::UART0);
     resets.unreset(Resets::Bit::UART0);
-    uart0.init(9600);
+    uart0.init(115200);
+    m33.enableIRQ(uart0.irqn());
 
-    char buffer[256];
-    memcpy(
-        buffer,
-        "hello world hello world hello world hello world hello world hello world hello world hello "
-        "world hello world hello world hello world hello world hello world hello world hello world "
-        "hello world hello world hello world hello world hello world hello 0123456789",
-        sizeof(buffer));
+    memset(buffer, ' ', sizeof(buffer));
+    bufIndex = 0;
 
-    uint8_t index = 0; // index always fits in buffer
+    m33.triggerIRQ(uart0.irqn());
 
+    unsigned ms = 250;
     while (true) {
-        // delay: (12k / 12MHz) -> 1ms
-        xosc.count = 12'000;
-        while (xosc.count) { sys::Insns().nop(); }
-
-        // Transmit a character
-        uart0.data.data = buffer[index++];
+        sys::Insns().nop();
+        if (!xosc.count) {
+            xosc.count = 12'000;
+            if (!--ms) {
+                ms             = 250;
+                sio.gpioOutXor = (1 << 25);
+            }
+        }
     }
 }

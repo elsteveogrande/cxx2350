@@ -14,11 +14,12 @@ clean:
 # Examples
 
 build/examples/%.elf: \
-      examples/%.cc layout.ld compile_flags.txt build/librp2350.a
+      examples/%.cc include/**/*.h layout.ld compile_flags.txt build/librp2350.a
 	mkdir -p build build/examples
 	clang++                  \
 		@compile_flags.txt     \
 		-fuse-ld=lld           \
+		-flto                  \
 		-target arm-none-eabi  \
 		-Wl,-T,layout.ld       \
 		-nostdlib              \
@@ -46,20 +47,21 @@ start_openocd:
 		-c "adapter speed 1000"
 
 # (See also `flash.sh`)
-flash: build/examples/Blink.elf
+flash: build/examples/UARTHello.elf
 	echo "program $< verify reset" | nc localhost 4444
 
 # Debugging etc.
 
-lldb: build/examples/Blink.elf
+lldb: build/examples/UARTHello.elf
 	lldb $< \
 		-O "platform select remote-gdb-server" \
 		-O "platform connect connect://localhost:3333"
 
-gdb:
+gdb: build/examples/UARTHello.elf
 	gdb $< \
-		-ex "target extended-remote localhost:3333"
+		-ex "target extended-remote localhost:3333" \
+		-ex "b hardFault" \
 
-dump: build/examples/Blink.elf
+dump: build/examples/UARTHello.elf
 	llvm-readelf --all $<
 	llvm-objdump -ds --debug-file-directory=/foo $<

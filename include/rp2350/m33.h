@@ -6,31 +6,14 @@ namespace rp2350 {
 
 // 3.7. Cortex-M33 Processor
 struct M33 {
-    struct SysTick {
-        enum class ClockSource { EXT_REF_CLK = 0, PROC_CLK = 1 };
-        struct CSR {
-            unsigned enable  : 1; // 0
-            unsigned tickInt : 1; // 1
-            unsigned source  : 1; // 2
-            unsigned         : 13;
-            unsigned count   : 1; // 16
-            unsigned         : 15;
-        };
-
-        CSR&      csr = *(CSR*)(0xe000e010);      // SysTick Control and Status Register
-        uint32_t& rvr = *(uint32_t*)(0xe000e014); // SysTick Reload Value Register
-    };
-
-    struct NVIC {
-        uint32_t& ser0 = *(uint32_t*)(0xe000e100); // Interrupt (0..31) Set Enable Registers
-        uint32_t& cer0 = *(uint32_t*)(0xe000e180); // Interrupt (0..31) Clear Enable Registers
-        uint32_t& spr0 = *(uint32_t*)(0xe000e200); // Interrupt (0..31) Set Pending Registers
-        uint32_t& cpr0 = *(uint32_t*)(0xe000e280); // Interrupt (0..31) Clear Pending Registers
-
-        void enableIRQ(uint8_t irq) { ser0 = uint32_t(1) << irq; }
-        void disableIRQ(uint8_t irq) { cer0 = uint32_t(1) << irq; }
-        void triggerIRQ(uint8_t irq) { spr0 = uint32_t(1) << irq; }
-        void clearPendIRQ(uint8_t irq) { cpr0 = uint32_t(1) << irq; }
+    enum class ClockSource { EXT_REF_CLK = 0, PROC_CLK = 1 };
+    struct CSR {
+        unsigned enable  : 1; // 0
+        unsigned tickInt : 1; // 1
+        unsigned source  : 1; // 2
+        unsigned         : 13;
+        unsigned count   : 1; // 16
+        unsigned         : 15;
     };
 
     struct ACTLR {
@@ -42,11 +25,21 @@ struct M33 {
     };
 
     struct ICSR {
-        unsigned                : 28;
-        unsigned pendingSysTick : 1; // 28
-        unsigned                : 1;
-        unsigned pendingSV      : 1; // 30
-        unsigned pendingNMI     : 1; // 31
+        unsigned vectActive          : 9; // 8..0
+        unsigned                     : 2;
+        unsigned retToBase           : 1; // 11
+        unsigned vectPending         : 9; // 20..12
+        unsigned                     : 1;
+        unsigned sysTickSecure       : 1; // 22
+        unsigned isrPreempt          : 1; // 23
+        unsigned isrPending          : 1; // 24
+        unsigned pendingSysTickClear : 1; // 25
+        unsigned pendingSysTick      : 1; // 26
+        unsigned pendingSVClear      : 1; // 27
+        unsigned pendingSV           : 1; // 28
+        unsigned                     : 1;
+        unsigned pendingNMIClear     : 1; // 30
+        unsigned pendingNMI          : 1; // 31
     };
 
     struct VTOR {
@@ -110,26 +103,52 @@ struct M33 {
         unsigned v;
     };
 
-    SysTick sysTick;
-    NVIC    nvic;
-    ACTLR&  actlr = *(ACTLR*)(0xE000E008); // Auxiliary Control Register - Cortex-M33
-    CPUID&  cpuid = *(CPUID*)(0xE000ED00); // CPUID Base Register
-    ICSR&   icsr  = *(ICSR*)(0xE000ED04);  // Interrupt Control and State Register
-    VTOR&   vtor  = *(VTOR*)(0xE000ED08);  // Vector Table Offset Register
-    AIRCR&  aircr = *(AIRCR*)(0xE000ED0C); // Application Interrupt and Reset Control Register
-    SCR&    scr   = *(SCR*)(0xE000ED10);   // System Control Register - Cortex-M33
-    CCR&    ccr   = *(CCR*)(0xE000ED14);   // Configuration and Control Register
-    SHPR1&  shpr1 = *(SHPR1*)(0xE000ED18); // System Handler Priority Register 1
-    SHPR2&  shpr2 = *(SHPR2*)(0xE000ED1C); // System Handler Priority Register 2
-    SHPR3&  shpr3 = *(SHPR3*)(0xE000ED20); // System Handler Priority Register 3
-    SHCSR&  shcsr = *(SHCSR*)(0xE000ED24); // System Handler Control and State Register
-    CFSR&   cfsr  = *(CFSR*)(0xE000ED28);  // Configurable Fault Status Register
-    HFSR&   hfsr  = *(HFSR*)(0xE000ED2C);  // HardFault Status Register
-    MMFAR&  mmfar = *(MMFAR*)(0xE000ED34); // MemManage Fault Address Register
-    BFAR&   bfar  = *(BFAR*)(0xE000ED38);  // BusFault Address Register
-    CPACR&  cpacr = *(CPACR*)(0xE000ED88); // Coprocessor Access Control Register
-    NSACR&  nsacr = *(NSACR*)(0xE000ED8C); // Non-secure Access Control Register
+    // clang-format off
+
+    // Registers in space 0xe0000000 - 0xe000ffff:
+    //  - See datasheet "3.7.5. List of registers", p149
+    //  - https://developer.arm.com/documentation/100235/0100/The-Cortex-M33-Peripherals/System-Control-Block/System-control-block-registers-summary
+
+    uint32_t regs[1 << 14];  // 64kB of space
+
+    ACTLR&    actlr() { return *(ACTLR   *)(&regs[0xe008 >> 2]); }  // Auxiliary Control Register
+    CSR&      csr()   { return *(CSR     *)(&regs[0xe010 >> 2]); }  // SysTick Control and Status Register
+    uint32_t& rvr()   { return *(uint32_t*)(&regs[0xe014 >> 2]); }  // SysTick Reload Value Register
+
+    uint32_t& ser0()  { return *(uint32_t*)(&regs[0xe100 >> 2]); }  // Interrupt (0..31) Set Enable Registers
+    uint32_t& cer0()  { return *(uint32_t*)(&regs[0xe180 >> 2]); }  // Interrupt (0..31) Clear Enable Registers
+    uint32_t& spr0()  { return *(uint32_t*)(&regs[0xe200 >> 2]); }  // Interrupt (0..31) Set Pending Registers
+    uint32_t& cpr0()  { return *(uint32_t*)(&regs[0xe280 >> 2]); }  // Interrupt (0..31) Clear Pending Registers
+
+    CPUID&    cpuid() { return *(CPUID   *)(&regs[0xed00 >> 2]); }  // CPUID Base Register
+    ICSR&     icsr()  { return *(ICSR    *)(&regs[0xed04 >> 2]); }  // Interrupt Control and State Register
+    VTOR&     vtor()  { return *(VTOR    *)(&regs[0xed08 >> 2]); }  // Vector Table Offset Register
+    AIRCR&    aircr() { return *(AIRCR   *)(&regs[0xed0c >> 2]); }  // Application Interrupt and Reset Control Register
+    SCR&      scr()   { return *(SCR     *)(&regs[0xed10 >> 2]); }  // System Control Register - Cortex-M33
+    CCR&      ccr()   { return *(CCR     *)(&regs[0xed14 >> 2]); }  // Configuration and Control Register
+    SHPR1&    shpr1() { return *(SHPR1   *)(&regs[0xed18 >> 2]); }  // System Handler Priority Register 1
+    SHPR2&    shpr2() { return *(SHPR2   *)(&regs[0xed1c >> 2]); }  // System Handler Priority Register 2
+    SHPR3&    shpr3() { return *(SHPR3   *)(&regs[0xed20 >> 2]); }  // System Handler Priority Register 3
+    SHCSR&    shcsr() { return *(SHCSR   *)(&regs[0xed24 >> 2]); }  // System Handler Control and State Register
+    CFSR&     cfsr()  { return *(CFSR    *)(&regs[0xed28 >> 2]); }  // Configurable Fault Status Register
+    HFSR&     hfsr()  { return *(HFSR    *)(&regs[0xed2c >> 2]); }  // HardFault Status Register
+    MMFAR&    mmfar() { return *(MMFAR   *)(&regs[0xed34 >> 2]); }  // MemManage Fault Address Register
+    BFAR&     bfar()  { return *(BFAR    *)(&regs[0xed38 >> 2]); }  // BusFault Address Register
+    CPACR&    cpacr() { return *(CPACR   *)(&regs[0xed88 >> 2]); }  // Coprocessor Access Control Register
+    NSACR&    nsacr() { return *(NSACR   *)(&regs[0xed8c >> 2]); }  // Non-secure Access Control Register
+
+    // clang-format on
+
+    uint32_t& ser(unsigned m) { return *(&ser0() + m); }
+    uint32_t& cer(unsigned m) { return *(&cer0() + m); }
+    uint32_t& spr(unsigned m) { return *(&spr0() + m); }
+    uint32_t& cpr(unsigned m) { return *(&cpr0() + m); }
+
+    void enableIRQ(unsigned irq) { ser(irq >> 5) = uint32_t(1) << (irq & 31); };
+    void disableIRQ(unsigned irq) { cer(irq >> 5) = uint32_t(1) << (irq & 31); };
+    void triggerIRQ(unsigned irq) { spr(irq >> 5) = uint32_t(1) << (irq & 31); };
+    void clrPendIRQ(unsigned irq) { cpr(irq >> 5) = uint32_t(1) << (irq & 31); };
 };
-inline M33 m33;
+inline auto& m33 = *(M33*)(0xe0000000);
 
 } // namespace rp2350
