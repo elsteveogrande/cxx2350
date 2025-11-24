@@ -22,14 +22,14 @@ struct PadsBank0 {
     };
 
     struct GPIO {
-        unsigned slewFast      : 1 {}; // 0
-        unsigned schmitt       : 1 {}; // 1
-        unsigned pullDown      : 1 {}; // 2
-        unsigned pullUp        : 1 {}; // 3
-        Drive    drive         : 2 {}; // 5..4
-        unsigned inputEnable   : 1 {}; // 6
-        unsigned outputDisable : 1 {}; // 7
-        unsigned isolation     : 1 {}; // 8
+        unsigned slewFast      : 1; // 0
+        unsigned schmitt       : 1; // 1
+        unsigned pullDown      : 1; // 2
+        unsigned pullUp        : 1; // 3
+        Drive    drive         : 2; // 5..4
+        unsigned inputEnable   : 1; // 6
+        unsigned outputDisable : 1; // 7
+        unsigned isolation     : 1; // 8
         unsigned               : 23;
     };
 

@@ -51,7 +51,7 @@ inline void sysTick() {
 constexpr unsigned const kIRQHandlers = 4;
 
 // Initially null.  Can add more; update `ARMVectors` if increasing
-inline vfunc irqHandlers[kIRQHandlers] {};
+inline vfunc irqHandlers[kIRQHandlers];
 
 inline void irq() {
     auto intn = Insns().ipsr() & 0x1ff;

@@ -23,7 +23,8 @@ extern void* __buf_y_end;
 
 } // extern "C"
 
-namespace rp2350::sys {
+namespace rp2350 {
+namespace sys {
 
 // Image definition [IMAGE_DEF]: section 5.9, "Metadata Block Details".
 struct [[gnu::packed]] ImageDef2350ARM {
@@ -38,4 +39,24 @@ struct [[gnu::packed]] ImageDef2350ARM {
     uint32_t end       = 0xab123579; // End magic
 };
 
-} // namespace rp2350::sys
+} // namespace sys
+
+template <class R, class NVR = __remove_volatile(R)> struct Update {
+    R*       reg_;
+    uint32_t val_;
+    Update(R* reg) : reg_(reg), val_(*(uint32_t*)reg) {}
+    NVR* operator->() { return (NVR*)&val_; }
+
+    ~Update() { write(); }
+    void write() {
+        if (reg_) { *(uint32_t volatile*)reg_ = val_; }
+        reg_ = nullptr;
+    }
+};
+
+template <class R> void update(R* reg, auto cb) {
+    Update u(reg);
+    cb(u);
+};
+
+} // namespace rp2350

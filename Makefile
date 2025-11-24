@@ -1,10 +1,7 @@
 CXX=clang++
 OPENOCD=openocd
 
-all: builddirs build/examples/Blink.elf
-
-builddirs:
-	mkdir -p build build/examples
+all: build/examples/Blink.elf
 
 build/examples/Blink.elf: \
       layout.ld compile_flags.txt \
@@ -23,22 +20,20 @@ build/examples/Blink.elf: \
 		build/examples/Blink.cc.o
 
 build/examples/Blink.cc.o: examples/Blink.cc include/**/*.h compile_flags.txt
-	mkdir -p build
+	mkdir -p build build/examples
 	clang++ @compile_flags.txt -c -o $@ $<
 
-build/librp2350.a: \
-      build/faults.s.o
+build/librp2350.a: build/faults.s.o
 	ar -r $@ $<
 
-build/%.cc.o: rp2350/%.cc include/**/*.h compile_flags.txt
-	mkdir -p build
-	clang++                    \
-	  @compile_flags.txt       \
-	  -Wunused -Werror=unused  \
-	  -c -o $@ $<
+# build/%.cc.o: rp2350/%.cc include/**/*.h compile_flags.txt
+# 	clang++                    \
+# 	  @compile_flags.txt       \
+# 	  -Wunused -Werror=unused  \
+# 	  -c -o $@ $<
 
-build/%.s.o: rp2350/%.s
-	mkdir -p build
+build/faults.s.o: include/rp2350/faults.s
+	mkdir -p build build/examples
 	clang++ @compile_flags.txt -xassembler -c -o $@ $<
 
 clean:

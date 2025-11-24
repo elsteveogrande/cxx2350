@@ -23,4 +23,12 @@ inline void __aeabi_memcpy(uint8_t* dest, uint8_t const* src, uint32_t n) {
 inline void __aeabi_memcpy4(uint8_t* dest, uint8_t const* src, unsigned n) {
     __aeabi_memcpy(dest, src, n);
 }
+
+inline void* memcpy(void* dst_, void const* src_, size_t n) {
+    auto* dst = reinterpret_cast<char*>(dst_);
+    auto* src = reinterpret_cast<char const*>(src_);
+    for (size_t i = 0; i < n; i++) { dst[i] = src[i]; }
+    return dst_;
 }
+
+} // extern "C" ends

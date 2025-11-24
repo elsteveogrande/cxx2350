@@ -30,29 +30,17 @@ struct GPIO {
         kEnable  = 3,
     };
 
-    // 9.4. Function Select; note that the correct funcsel depends on the GPIO number;
-    // e.g. the value 10 might be either USBVBUS or USBOVRCUR; UART might be 2 or 11; and so on.
-    enum class FuncSel {
-        HSTX      = 0,
-        SPI       = 1,
-        UART2     = 2,
-        I2C       = 3,
-        PWM       = 4,
-        SIO       = 5,
-        PIO0      = 6,
-        PIO1      = 7,
-        PIO2      = 8,
-        TRACEDATA = 9,
-        QMI       = 9,
-        CLOCK     = 9,
-        USBVBUS   = 10,
-        USBOVRCUR = 10,
-        UART11    = 11,
-        NULL_FN   = 31,
-    };
+    // 9.4. Function Select; note that the correct funcsel depends on the GPIO number
+    template <unsigned GPIO> struct FuncSel;
+
+    // clang-format off
+    template <> struct FuncSel< 0> { constexpr static unsigned SPI0RX=1, UART0TX=2, I2C0SDA=3, PWM0A=4, SIO=5, PIO0=6, PIO1=7, PIO2=8, QMICS1n=9, USBOVRCURDET=10;};
+    template <> struct FuncSel< 1> { constexpr static unsigned SPI0CSn=1, UART0RX=2, I2C0SCL=3, PWM0B=4, SIO=5, PIO0=6, PIO1=7, PIO2=8, TRACECLK=9, USBVBUSDET=10;};
+    template <> struct FuncSel<25> { constexpr static unsigned SPI0CSn=1, UART0RX=2, I2C0SCL=3, PWM4B=4, SIO=5, PIO0=6, PIO1=7, PIO2=8, CLKGPOUT3=9, USBVBUSDET=10;};
+    // clang-format on
 
     struct Control {
-        FuncSel funcSel  : 5;  // 4..0
+        unsigned funcSel : 5;  // 4..0
         unsigned         : 7;  // 11..5
         unsigned outOver : 2;  // 13..12
         unsigned oeOver  : 2;  // 15..14
