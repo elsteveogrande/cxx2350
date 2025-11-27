@@ -5,7 +5,7 @@
 extern "C" {
 
 // Application code to jump to post-init
-void _start();
+extern void _start();
 
 // Defined in the linker script
 extern void* __reset_sp;
@@ -18,6 +18,21 @@ extern void* __init_array_end;
 
 namespace rp2350 {
 namespace sys {
+
+// Global config
+constexpr static uint64_t kSysHz = 252'000'000;
+constexpr static uint64_t kXOSC  = 12'000'000;
+constexpr static uint64_t kFBDiv = 63;
+constexpr static uint64_t kDiv1  = 3;
+constexpr static uint64_t kDiv2  = 1;
+// Verify
+static_assert(16 <= kFBDiv && kFBDiv <= 320);
+static_assert(1 <= kDiv1 && kDiv1 <= 7);
+static_assert(1 <= kDiv2 && kDiv2 <= 7);
+static_assert(kDiv1 >= kDiv2);
+static_assert(kXOSC * kFBDiv >= 750'000'000);
+static_assert(kXOSC * kFBDiv <= 1600'000'000);
+static_assert(kXOSC * kFBDiv / (kDiv1 * kDiv2) == kSysHz);
 
 // Image definition [IMAGE_DEF]: section 5.9, "Metadata Block Details".
 struct [[gnu::packed]] ImageDef2350ARM {
@@ -34,13 +49,24 @@ struct [[gnu::packed]] ImageDef2350ARM {
 
 } // namespace sys
 
+struct R32 {
+    uint32_t& u32() { return *reinterpret_cast<uint32_t*>(this); }
+};
+
 template <class R, class NVR = __remove_volatile(R)> struct Update {
     R*       reg_;
     uint32_t val_;
-    Update(R* reg) : reg_(reg), val_(*(uint32_t*)reg) {}
-    NVR* operator->() { return (NVR*)&val_; }
 
     ~Update() { write(); }
+    Update(R* reg) : reg_(reg), val_(*(uint32_t*)reg) {}
+
+    NVR* operator->() { return (NVR*)&val_; }
+
+    auto& zero() {
+        val_ = 0;
+        return *this;
+    }
+
     void write() {
         if (reg_) { *(uint32_t volatile*)reg_ = val_; }
         reg_ = nullptr;

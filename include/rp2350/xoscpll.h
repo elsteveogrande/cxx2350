@@ -1,5 +1,6 @@
 #pragma once
 #include <cxx20/cxxabi.h>
+#include <rp2350/common.h>
 #include <rp2350/insns.h>
 #include <rp2350/resets.h>
 
@@ -104,25 +105,30 @@ struct PLL {
     uint32_t    ints; // TODO
 
     // Section 8.6, PLL, p583 describes the `pll_init` process
-    void init(uint16_t fbd, uint8_t div1, uint8_t div2, uint8_t refDiv = 1) {
-        if (div1 < div2) { return init(fbd, div2, div1, refDiv); }
-
+    void init() {
         resets.reset(Resets::Bit::PLLSYS); // includes powering down
         resets.unreset(Resets::Bit::PLLSYS);
         cs.bypass       = false;
-        cs.refDiv       = refDiv;
-        fbDiv           = fbd;
+        cs.refDiv       = 1;
+        fbDiv           = sys::kFBDiv;
         powerDown.pd    = false;
         powerDown.vcoPD = false;
         while (!cs.lock) { rp2350::sys::nop(); } // wait for LOCK
 
-        prim.postDiv1       = div1;
-        prim.postDiv2       = div2;
+        prim.postDiv1       = sys::kDiv1;
+        prim.postDiv2       = sys::kDiv2;
         powerDown.postdivPD = false;
     }
-
-    void init150MHz() { init(125, 5, 2, 1); }
 };
 inline auto& sysPLL = *(PLL*)(0x40050000);
+
+inline void delay1() {
+    xosc.count = sys::kXOSC / 1000;
+    while (xosc.count) { sys::Insns().nop(); }
+}
+
+inline void delay(unsigned ms) {
+    while (ms--) { delay1(); }
+}
 
 } // namespace rp2350

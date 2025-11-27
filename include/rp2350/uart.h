@@ -13,7 +13,7 @@ namespace rp2350 {
 
 // Section 12.1, "UART"
 template <unsigned U> struct UART {
-    struct Data {
+    struct Data : R32 {
         unsigned data         : 8; // 7..0
         unsigned framingError : 1; // 8 write-to-clear
         unsigned parityError  : 1; // 9 write-to-clear
@@ -22,7 +22,7 @@ template <unsigned U> struct UART {
         unsigned              : 20;
     };
 
-    struct RXStatus {
+    struct RXStatus : R32 {
         unsigned framingError : 1; // 0 write-to-clear
         unsigned parityError  : 1; // 1 write-to-clear
         unsigned breakError   : 1; // 2 write-to-clear
@@ -30,7 +30,7 @@ template <unsigned U> struct UART {
         unsigned              : 28;
     };
 
-    struct Flags {
+    struct Flags : R32 {
         unsigned cts     : 1; // 0
         unsigned dsr     : 1; // 1
         unsigned dcd     : 1; // 2
@@ -62,7 +62,7 @@ template <unsigned U> struct UART {
         k8Bit = 3,
     };
 
-    struct LineControl {
+    struct LineControl : R32 {
         unsigned   brk          : 1;  // 0
         unsigned   parityEnable : 1;  // 1
         unsigned   evenParity   : 1;  // 2
@@ -73,21 +73,21 @@ template <unsigned U> struct UART {
         unsigned                : 24; // 8
     };
 
-    struct Control {
-        unsigned enable          : 1; // 0
-        unsigned sirEnable       : 1; // 1
-        unsigned sirIrDALowPower : 1; // 2
-        unsigned                 : 4;
-        unsigned loopback        : 1; // 7
-        unsigned txEnable        : 1; // 8
-        unsigned rxEnable        : 1; // 9
-        unsigned dtr             : 1; // 10
-        unsigned rts             : 1; // 11
-        unsigned out1            : 1; // 12
-        unsigned out2            : 1; // 13
-        unsigned rtsEnable       : 1; // 14
-        unsigned ctsEnable       : 1; // 15
-        unsigned                 : 16;
+    struct Control : R32 {
+        unsigned enable      : 1; // 0
+        unsigned sirEnable   : 1; // 1
+        unsigned sirLowPower : 1; // 2
+        unsigned             : 4;
+        unsigned loopback    : 1; // 7
+        unsigned txEnable    : 1; // 8
+        unsigned rxEnable    : 1; // 9
+        unsigned dtr         : 1; // 10
+        unsigned rts         : 1; // 11
+        unsigned out1        : 1; // 12
+        unsigned out2        : 1; // 13
+        unsigned rtsEnable   : 1; // 14
+        unsigned ctsEnable   : 1; // 15
+        unsigned             : 16;
     };
 
     struct IntFIFOLevel {
@@ -96,52 +96,7 @@ template <unsigned U> struct UART {
         unsigned            : 26;
     };
 
-    struct IntMask {
-        unsigned ri  : 1; // 0
-        unsigned cts : 1; // 1
-        unsigned dcd : 1; // 2
-        unsigned dsr : 1; // 3
-        unsigned rx  : 1; // 4
-        unsigned tx  : 1; // 5
-        unsigned rt  : 1; // 6
-        unsigned fe  : 1; // 7
-        unsigned pe  : 1; // 8
-        unsigned be  : 1; // 9
-        unsigned oe  : 1; // 10
-        unsigned     : 21;
-    };
-
-    struct IntStatus {
-        unsigned ri  : 1; // 0
-        unsigned cts : 1; // 1
-        unsigned dcd : 1; // 2
-        unsigned dsr : 1; // 3
-        unsigned rx  : 1; // 4
-        unsigned tx  : 1; // 5
-        unsigned rt  : 1; // 6
-        unsigned fe  : 1; // 7
-        unsigned pe  : 1; // 8
-        unsigned be  : 1; // 9
-        unsigned oe  : 1; // 10
-        unsigned     : 21;
-    };
-
-    struct IntMaskedStat {
-        unsigned ri  : 1; // 0
-        unsigned cts : 1; // 1
-        unsigned dcd : 1; // 2
-        unsigned dsr : 1; // 3
-        unsigned rx  : 1; // 4
-        unsigned tx  : 1; // 5
-        unsigned rt  : 1; // 6
-        unsigned fe  : 1; // 7
-        unsigned pe  : 1; // 8
-        unsigned be  : 1; // 9
-        unsigned oe  : 1; // 10
-        unsigned     : 21;
-    };
-
-    struct IntClear {
+    struct IntMask : R32 {
         unsigned ri  : 1; // 0
         unsigned cts : 1; // 1
         unsigned dcd : 1; // 2
@@ -163,25 +118,25 @@ template <unsigned U> struct UART {
         unsigned             : 29;
     };
 
-    Data          data;            // 0x000
-    RXStatus      rxStatus;        // 0x004
-    uint32_t      z_008;           //
-    uint32_t      z_00c;           //
-    uint32_t      z_010;           //
-    uint32_t      z_014;           //
-    Flags         flags;           // 0x018
-    uint32_t      z_01c;           //
-    uint32_t      irdaLowPower;    // 0x020
-    IntBaud       intBaud;         // 0x024
-    FracBaud      fracBaud;        // 0x028
-    LineControl   lineControl;     // 0x02c
-    Control       control;         // 0x030
-    IntFIFOLevel  intFIFOLevel;    // 0x034
-    IntMask       intMask;         // 0x038
-    IntStatus     rawIntStatus;    // 0x03c
-    IntMaskedStat maskedIntStatus; // 0x040
-    IntClear      intClear;        // 0x044
-    DMAControl    dmaControl;      // 0x048
+    Data         data;            // 0x000
+    RXStatus     rxStatus;        // 0x004
+    uint32_t     z_008;           //
+    uint32_t     z_00c;           //
+    uint32_t     z_010;           //
+    uint32_t     z_014;           //
+    Flags        flags;           // 0x018
+    uint32_t     z_01c;           //
+    uint32_t     sirLowPower;     // 0x020
+    IntBaud      intBaud;         // 0x024
+    FracBaud     fracBaud;        // 0x028
+    LineControl  lineControl;     // 0x02c
+    Control      control;         // 0x030
+    IntFIFOLevel intFIFOLevel;    // 0x034
+    IntMask      intMask;         // 0x038
+    IntMask      rawIntStatus;    // 0x03c
+    IntMask      maskedIntStatus; // 0x040
+    IntMask      intClear;        // 0x044
+    DMAControl   dmaControl;      // 0x048
     // uint32_t periph0;         // 0xfe0
     // uint32_t periph1;         // 0xfe4
     // uint32_t periph2;         // 0xfe8
@@ -191,44 +146,40 @@ template <unsigned U> struct UART {
     // uint32_t pCell2;          // 0xff8
     // uint32_t pCell3;          // 0xffc
 
-    void init(uint32_t baud = 115200, bool brk = false, bool stop2 = false) {
+    void init(uint32_t baud = 115200) {
         // TODO take parameters.  For now hardcode 8/N/1
         // TODO understand what's going on here.  Mostly a copy of uart_set_baudrate on PDF p973 or:
         // https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/hardware_uart/uart.c#L155-L180
         // or: https://developer.arm.com/documentation/ddi0183/latest/
-        uint32_t div   = ((8 * 150000000) / baud) + 1;
+        uint32_t div   = ((8 * sys::kSysHz) / baud) + 1;
         uint32_t dint  = div >> 7;
         uint32_t dfrac = (div & 0x7f) >> 1;
         intBaud.div    = dint;
         fracBaud.div   = dfrac;
         // These control register writes also latch the divisors set above
         update(&lineControl, [&](auto& _) {
-            _->brk          = brk;
-            _->parityEnable = false;
-            _->stop2        = stop2;
-            _->fifoEnable   = true;
-            _->wordLength   = WordLength::k8Bit;
+            _.zero();
+            _->fifoEnable = false;
+            _->wordLength = WordLength::k8Bit;
         });
         update(&control, [](auto& _) {
+            _.zero();
             _->enable   = true;
             _->txEnable = true;
             _->rxEnable = true;
         });
         update(&dmaControl, [](auto& _) {
+            _.zero();
+            // SDK unconditionally enables these (harmless even if not using DMA)
             _->rxDMAEnable = true;
             _->txDMAEnable = true;
-            _->dmaOnError  = false;
         });
         update(&intFIFOLevel, [](auto& _) {
             _->txLevelSel = 0;
             _->rxLevelSel = 0;
         });
         update(&intMask, [](auto& _) {
-            _->tx = true;
-            _->rx = true;
-            _->rt = true;
-        });
-        update(&intClear, [](auto& _) {
+            _.zero();
             _->tx = true;
             _->rx = true;
             _->rt = true;

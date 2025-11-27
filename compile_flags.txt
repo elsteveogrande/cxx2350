@@ -27,7 +27,8 @@ thumbv8m.main-none-eabi
 -isystem
 ./include
 -fno-builtin
--Og
--fno-omit-frame-pointer
 -ffreestanding
 -mno-unaligned-access
+-Os
+-fno-omit-frame-pointer
+-fno-optimize-sibling-calls

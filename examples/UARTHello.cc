@@ -2,6 +2,7 @@
 #include <rp2350/clocks.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
+#include <rp2350/insns.h>
 #include <rp2350/interrupts.h>
 #include <rp2350/m33.h>
 #include <rp2350/pads.h>
@@ -30,37 +31,70 @@ namespace rp2350::sys {
 
 using namespace rp2350;
 
-template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
-    Update u {&padsBank0.gpio[I]};
-    u->slewFast             = true;
-    u->drive                = PadsBank0::Drive::k12mA;
-    u->inputEnable          = true;
-    u->outputDisable        = false;
-    u->isolation            = false;
-    gpio[I].control.funcSel = funcSel;
-    sio.gpioOutEnbSet       = (1 << I);
-    sio.gpioOutClr          = (1 << I);
+template <uint16_t N> struct Buffer {
+    uint8_t  buf[N];
+    uint16_t head {0}; // next read / pop / dequeue pos
+    uint16_t tail {0}; // next write / push / enqueue pos
+
+    size_t size() const { return ((tail + N) - head) % N; }
+    bool   empty() const { return head == tail; }
+    bool   full() const { return size() == N - 1; }
+
+    void push(uint8_t x) {
+        if (!full()) { buf[tail++] = x; }
+    }
+    uint8_t pop() {
+        if (!empty()) {
+            return buf[head++];
+        } else {
+            return 0xff;
+        }
+    }
+};
+
+Buffer<64> txBuffer;
+Buffer<64> rxBuffer;
+
+void putC(char c) {
+    txBuffer.push(c);
+    m33.triggerIRQ(uart0.irqn());
 }
 
-char    buffer[256];
-uint8_t bufIndex = 0; // always fits in buffer
+void putHex(unsigned nibs, uint32_t x) {
+    constexpr static char const* kHexTable = "0123456789abcdef";
+    if (nibs >= 8) { putC(kHexTable[(x >> 28) & 0x0f]); }
+    if (nibs >= 7) { putC(kHexTable[(x >> 24) & 0x0f]); }
+    if (nibs >= 6) { putC(kHexTable[(x >> 20) & 0x0f]); }
+    if (nibs >= 5) { putC(kHexTable[(x >> 16) & 0x0f]); }
+    if (nibs >= 4) { putC(kHexTable[(x >> 12) & 0x0f]); }
+    if (nibs >= 3) { putC(kHexTable[(x >> 8) & 0x0f]); }
+    if (nibs >= 2) { putC(kHexTable[(x >> 4) & 0x0f]); }
+    if (nibs >= 1) { putC(kHexTable[(x >> 0) & 0x0f]); }
+}
 
-__attribute__((optnone)) void uart0IRQ() {
-    auto wrIndex = bufIndex;
-    while (!uart0.flags.rxEmpty) { buffer[wrIndex++] = uart0.data.data; }
-    while (!uart0.flags.txFull) { uart0.data.data = buffer[bufIndex++]; }
-    update(&uart0.intClear, [](auto& _) {
-        _->tx = true;
-        _->rx = true;
-        _->rt = true;
-    });
+void putU32(uint32_t x) { putHex(8, x); }
+void putU16(uint32_t x) { putHex(4, x); }
+void putU8(uint32_t x) { putHex(2, x); }
+void putS(char const* s) {
+    while (*s) { putC(*s++); }
+}
+
+[[clang::optnone]]
+void uart0IRQ() {
+    if (uart0.rxStatus.u32()) {
+        uart0.rxStatus.u32() = 0x0f; // clear all bits
+        return;
+    }
+    while (!uart0.flags.rxEmpty && !rxBuffer.full()) { rxBuffer.push(uart0.data.data); }
+    while (!uart0.flags.txFull && !txBuffer.empty()) { uart0.data.data = txBuffer.pop(); }
+    uart0.intClear.u32() = 0x7ff;
 }
 
 // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
     sys::initInterrupts();
     xosc.init();
-    sysPLL.init150MHz();
+    sysPLL.init();
 
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
     clocks.ref.div     = {.fraction = 0, .integer = 1};
@@ -92,7 +126,7 @@ __attribute__((optnone)) void uart0IRQ() {
     sio.gpioOutSet = 1 << 25; // turn it on
 
     initGPIOOutput<0>(GPIO::FuncSel<0>::UART0TX);
-    initGPIOOutput<1>(GPIO::FuncSel<1>::UART0RX);
+    // initGPIOInput<1>(GPIO::FuncSel<1>::UART0RX);
 
     update(&clocks.peri.control, [&](auto& _) {
         _->auxSource = Clocks::Peri::AuxSource::PLL_SYS;
@@ -105,23 +139,8 @@ __attribute__((optnone)) void uart0IRQ() {
     sys::irqHandlers[uart0.irqn()] = uart0IRQ;
     resets.reset(Resets::Bit::UART0);
     resets.unreset(Resets::Bit::UART0);
-    uart0.init(115200);
     m33.enableIRQ(uart0.irqn());
+    uart0.init(9600);
 
-    memset(buffer, ' ', sizeof(buffer));
-    bufIndex = 0;
-
-    m33.triggerIRQ(uart0.irqn());
-
-    unsigned ms = 250;
-    while (true) {
-        sys::Insns().nop();
-        if (!xosc.count) {
-            xosc.count = 12'000;
-            if (!--ms) {
-                ms             = 250;
-                sio.gpioOutXor = (1 << 25);
-            }
-        }
-    }
+    sys::panic();
 }

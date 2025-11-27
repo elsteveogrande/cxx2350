@@ -1,35 +1,26 @@
 CXX=clang++
 OPENOCD=openocd
 
-build/librp2350.a: build/faults.s.o
+all: build/examples/UARTHello.elf
+
+build/librp2350.a: build/interrupts.s.o
 	ar -r $@ $<
 
-build/faults.s.o: include/rp2350/faults.s
+build/%.s.o: include/rp2350/%.s
 	mkdir -p build build/examples
-	clang++ @compile_flags.txt -xassembler -c -o $@ $<
+	$(CXX) @compile_flags.txt -xassembler -c -o $@ $<
 
 clean:
 	rm -rf build/
 
 # Examples
 
-build/examples/%.elf: \
-      examples/%.cc include/**/*.h layout.ld compile_flags.txt build/librp2350.a
+build/examples/%.elf: build/examples/%.cc.o layout.ld build/librp2350.a link_flags.txt
+	$(CXX) @link_flags.txt -o $@ $<
+
+build/examples/%.cc.o: examples/%.cc include/**/*.h layout.ld compile_flags.txt
 	mkdir -p build build/examples
-	clang++                  \
-		@compile_flags.txt     \
-		-fuse-ld=lld           \
-		-flto                  \
-		-target arm-none-eabi  \
-		-Wl,-T,layout.ld       \
-		-nostdlib              \
-		-g -Wl,--gdb-index     \
-		-gsplit-dwarf          \
-		-L build               \
-		-lrp2350               \
-		-ffreestanding         \
-		-o $@                  \
-		$<
+	$(CXX) @compile_flags.txt -I.. -o $@ -c $<
 
 # Programming flash
 

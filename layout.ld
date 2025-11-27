@@ -11,6 +11,7 @@ MEMORY {
 }
 
 __reset_sp   = ORIGIN(STACK) + LENGTH(STACK) - (4 * 4);
+__panic_sp   = ORIGIN(PANICSTACK) + LENGTH(PANICSTACK) - (4 * 4);
 __heap_base  = ORIGIN(HEAP);
 __heap_end   = ORIGIN(HEAP) + LENGTH(HEAP);
 

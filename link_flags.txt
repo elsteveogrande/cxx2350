@@ -1,0 +1,10 @@
+-fuse-ld=lld
+-flto
+-target arm-none-eabi
+-Wl,-T,layout.ld
+-nostdlib
+-g -Wl,--gdb-index
+-gsplit-dwarf
+-L build
+-lrp2350
+-ffreestanding

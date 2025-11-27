@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cxx20/cxxabi.h>
+#include <rp2350/common.h>
+#include <rp2350/pads.h>
+
 namespace rp2350 {
 
 // GPIO and SIO
@@ -21,7 +25,7 @@ struct GPIO {
         unsigned           : 5; // 31..27
     };
 
-    enum class Override {
+    enum class Override : unsigned {
         kNormal  = 0,
         kInvert  = 1,
         kLow     = 2,
@@ -42,11 +46,11 @@ struct GPIO {
     struct Control {
         unsigned funcSel : 5;  // 4..0
         unsigned         : 7;  // 11..5
-        unsigned outOver : 2;  // 13..12
-        unsigned oeOver  : 2;  // 15..14
-        unsigned inOver  : 2;  // 17..16
+        Override outOver : 2;  // 13..12
+        Override oeOver  : 2;  // 15..14
+        Override inOver  : 2;  // 17..16
         unsigned         : 10; // 27..18
-        unsigned irqOver : 2;  // 29..28
+        Override irqOver : 2;  // 29..28
         unsigned         : 2;  // 31..30
     };
 
@@ -66,7 +70,7 @@ inline auto& gpio = *(GPIO*)(0x40028000);
 // Note that for simplicity this only supports Bank0.
 // We'll assume Bank1 is not dealt with; the pins in Bank1
 // will then continue to be reserved only for QSPI.
-struct SIO {
+struct SIO : R32 {
     unsigned cpuID;         // 0xd0000000
     unsigned gpioIn;        // 0xd0000004
     unsigned z_008;         // 0xd0000008
@@ -96,5 +100,52 @@ struct SIO {
     // lots more
 };
 inline auto& sio = *(SIO*)(0xd0000000);
+
+template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
+    gpio[I].control.funcSel = funcSel;
+    sio.gpioOutEnbSet       = (1 << I);
+    sio.gpioOutClr          = (1 << I);
+
+    {
+        Update u {&gpio[I].control};
+        u->funcSel = funcSel;
+        u->inOver  = GPIO::Override::kNormal;
+        u->irqOver = GPIO::Override::kNormal;
+        u->outOver = GPIO::Override::kNormal;
+        u->oeOver  = GPIO::Override::kNormal;
+    }
+
+    {
+        Update u {&padsBank0.gpio[I]};
+        u->drive         = PadsBank0::Drive::k12mA;
+        u->inputEnable   = false;
+        u->outputDisable = false;
+        u->isolation     = false;
+    }
+}
+
+template <uint8_t I> void initGPIOInput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
+    sio.gpioOutEnbClr = (1 << I);
+
+    {
+        Update u {&gpio[I].control};
+        u->funcSel = funcSel;
+        u->inOver  = GPIO::Override::kNormal;
+        u->irqOver = GPIO::Override::kNormal;
+        u->outOver = GPIO::Override::kNormal;
+        u->oeOver  = GPIO::Override::kNormal;
+    }
+
+    {
+        Update u {&padsBank0.gpio[I]};
+        u->slewFast      = true;
+        u->schmitt       = false;
+        u->inputEnable   = true;
+        u->outputDisable = true;
+        u->pullDown      = false;
+        u->pullUp        = false;
+        u->isolation     = false;
+    }
+}
 
 } // namespace rp2350

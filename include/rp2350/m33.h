@@ -1,13 +1,14 @@
 #pragma once
 
 #include <cxx20/cxxabi.h>
+#include <rp2350/common.h>
 
 namespace rp2350 {
 
 // 3.7. Cortex-M33 Processor
 struct M33 {
     enum class ClockSource { EXT_REF_CLK = 0, PROC_CLK = 1 };
-    struct CSR {
+    struct CSR : R32 {
         unsigned enable  : 1; // 0
         unsigned tickInt : 1; // 1
         unsigned source  : 1; // 2
@@ -16,15 +17,15 @@ struct M33 {
         unsigned         : 15;
     };
 
-    struct ACTLR {
+    struct ACTLR : R32 {
         unsigned v;
     };
 
-    struct CPUID {
+    struct CPUID : R32 {
         unsigned v;
     };
 
-    struct ICSR {
+    struct ICSR : R32 {
         unsigned vectActive          : 9; // 8..0
         unsigned                     : 2;
         unsigned retToBase           : 1; // 11
@@ -42,63 +43,63 @@ struct M33 {
         unsigned pendingNMI          : 1; // 31
     };
 
-    struct VTOR {
+    struct VTOR : R32 {
         // TODO
         unsigned v;
     };
-    struct AIRCR {
+    struct AIRCR : R32 {
         // TODO
         unsigned v;
     };
-    struct SCR {
+    struct SCR : R32 {
         // TODO
         unsigned v;
     };
 
-    struct CCR {
+    struct CCR : R32 {
         unsigned               : 3;
         unsigned unalignedTrap : 1; // 3
         unsigned div0Trap      : 1; // 4
         unsigned               : 27;
     };
 
-    struct SHPR1 {
+    struct SHPR1 : R32 {
         // TODO
         unsigned v;
     };
-    struct SHPR2 {
+    struct SHPR2 : R32 {
         // TODO
         unsigned v;
     };
-    struct SHPR3 {
+    struct SHPR3 : R32 {
         // TODO
         unsigned v;
     };
-    struct SHCSR {
+    struct SHCSR : R32 {
         // TODO
         unsigned v;
     };
-    struct CFSR {
+    struct CFSR : R32 {
         // TODO
         unsigned v;
     };
-    struct HFSR {
+    struct HFSR : R32 {
         // TODO
         unsigned v;
     };
-    struct MMFAR {
+    struct MMFAR : R32 {
         // TODO
         unsigned v;
     };
-    struct BFAR {
+    struct BFAR : R32 {
         // TODO
         unsigned v;
     };
-    struct CPACR {
+    struct CPACR : R32 {
         // TODO
         unsigned v;
     };
-    struct NSACR {
+    struct NSACR : R32 {
         // TODO
         unsigned v;
     };
@@ -115,10 +116,10 @@ struct M33 {
     CSR&      csr()   { return *(CSR     *)(&regs[0xe010 >> 2]); }  // SysTick Control and Status Register
     uint32_t& rvr()   { return *(uint32_t*)(&regs[0xe014 >> 2]); }  // SysTick Reload Value Register
 
-    uint32_t& ser0()  { return *(uint32_t*)(&regs[0xe100 >> 2]); }  // Interrupt (0..31) Set Enable Registers
-    uint32_t& cer0()  { return *(uint32_t*)(&regs[0xe180 >> 2]); }  // Interrupt (0..31) Clear Enable Registers
-    uint32_t& spr0()  { return *(uint32_t*)(&regs[0xe200 >> 2]); }  // Interrupt (0..31) Set Pending Registers
-    uint32_t& cpr0()  { return *(uint32_t*)(&regs[0xe280 >> 2]); }  // Interrupt (0..31) Clear Pending Registers
+    uint32_t* ser_()  { return regs + (0xe100 >> 2); }  // Interrupt (0..31) Set Enable Registers
+    uint32_t* cer_()  { return regs + (0xe180 >> 2); }  // Interrupt (0..31) Clear Enable Registers
+    uint32_t* spr_()  { return regs + (0xe200 >> 2); }  // Interrupt (0..31) Set Pending Registers
+    uint32_t* cpr_()  { return regs + (0xe280 >> 2); }  // Interrupt (0..31) Clear Pending Registers
 
     CPUID&    cpuid() { return *(CPUID   *)(&regs[0xed00 >> 2]); }  // CPUID Base Register
     ICSR&     icsr()  { return *(ICSR    *)(&regs[0xed04 >> 2]); }  // Interrupt Control and State Register
@@ -139,10 +140,10 @@ struct M33 {
 
     // clang-format on
 
-    uint32_t& ser(unsigned m) { return *(&ser0() + m); }
-    uint32_t& cer(unsigned m) { return *(&cer0() + m); }
-    uint32_t& spr(unsigned m) { return *(&spr0() + m); }
-    uint32_t& cpr(unsigned m) { return *(&cpr0() + m); }
+    uint32_t& ser(unsigned m) { return *(ser_() + m); }
+    uint32_t& cer(unsigned m) { return *(cer_() + m); }
+    uint32_t& spr(unsigned m) { return *(spr_() + m); }
+    uint32_t& cpr(unsigned m) { return *(cpr_() + m); }
 
     void enableIRQ(unsigned irq) { ser(irq >> 5) = uint32_t(1) << (irq & 31); };
     void disableIRQ(unsigned irq) { cer(irq >> 5) = uint32_t(1) << (irq & 31); };
