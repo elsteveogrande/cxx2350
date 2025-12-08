@@ -1,7 +1,8 @@
 CXX=clang++
 OPENOCD=openocd
+EXAMPLE=HDMI
 
-all: build/examples/UARTHello.elf
+all: build/examples/$(EXAMPLE).elf
 
 build/librp2350.a: build/interrupts.s.o
 	ar -r $@ $<
@@ -38,21 +39,21 @@ start_openocd:
 		-c "adapter speed 1000"
 
 # (See also `flash.sh`)
-flash: build/examples/UARTHello.elf
+flash: build/examples/$(EXAMPLE).elf
 	echo "program $< verify reset" | nc localhost 4444
 
 # Debugging etc.
 
-lldb: build/examples/UARTHello.elf
+lldb: build/examples/$(EXAMPLE).elf
 	lldb $< \
 		-O "platform select remote-gdb-server" \
 		-O "platform connect connect://localhost:3333"
 
-gdb: build/examples/UARTHello.elf
+gdb: build/examples/$(EXAMPLE).elf
 	gdb $< \
 		-ex "target extended-remote localhost:3333" \
 		-ex "b hardFault" \
 
-dump: build/examples/UARTHello.elf
+dump: build/examples/$(EXAMPLE).elf
 	llvm-readelf --all $<
 	llvm-objdump -ds --debug-file-directory=/foo $<

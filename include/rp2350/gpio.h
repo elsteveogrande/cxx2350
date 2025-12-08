@@ -38,9 +38,39 @@ struct GPIO {
     template <unsigned GPIO> struct FuncSel;
 
     // clang-format off
-    template <> struct FuncSel< 0> { constexpr static unsigned SPI0RX=1, UART0TX=2, I2C0SDA=3, PWM0A=4, SIO=5, PIO0=6, PIO1=7, PIO2=8, QMICS1n=9, USBOVRCURDET=10;};
-    template <> struct FuncSel< 1> { constexpr static unsigned SPI0CSn=1, UART0RX=2, I2C0SCL=3, PWM0B=4, SIO=5, PIO0=6, PIO1=7, PIO2=8, TRACECLK=9, USBVBUSDET=10;};
-    template <> struct FuncSel<25> { constexpr static unsigned SPI0CSn=1, UART0RX=2, I2C0SCL=3, PWM4B=4, SIO=5, PIO0=6, PIO1=7, PIO2=8, CLKGPOUT3=9, USBVBUSDET=10;};
+    // Table on p.591
+    // TODO!  Fill in; double-check; maybe automate this
+
+    template <> struct FuncSel< 0> { constexpr static unsigned         SPI0RX=1,    UART0TX=2,  I2C0SDA=3,  PWM0A=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8, QMICS1n=9,      USBOVRCURDET=10; };
+    template <> struct FuncSel< 1> { constexpr static unsigned         SPI0CSn=1,   UART0RX=2,  I2C0SCL=3,  PWM0B=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8, TRACECLK=9,     USBVBUSDET=10; };
+    template <> struct FuncSel< 2> {};
+    template <> struct FuncSel< 3> {};
+    template <> struct FuncSel< 4> {};
+    template <> struct FuncSel< 5> {};
+    template <> struct FuncSel< 6> {};
+    template <> struct FuncSel< 7> {};
+    template <> struct FuncSel< 8> {};
+    template <> struct FuncSel< 9> {};
+    template <> struct FuncSel<10> {};
+    template <> struct FuncSel<11> {};
+    template <> struct FuncSel<12> { constexpr static unsigned HSTX=0, SPI1RX=1,    UART0TX=2,  I2C0SDA=3,  PWM6A=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8, CLK_GPIN0=9,    USBOVRCURDET=10; };
+    template <> struct FuncSel<13> { constexpr static unsigned HSTX=0, SPI1CSn=1,   UART0RX=2,  I2C0SCL=3,  PWM6B=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8, CLK_GPOUT0=9,   USBVBUSDET=10; };
+    template <> struct FuncSel<14> { constexpr static unsigned HSTX=0, SPI1SCK=1,   UART0CTS=2, I2C1SDA=3,  PWM7A=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8, CLK_GPIN1=9,    USBVBUSEN=10; };
+    template <> struct FuncSel<15> { constexpr static unsigned HSTX=0, SPI1TX=1,    UART0RTS=2, I2C1SCL=3,  PWM7B=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8, CLK_GPOUT1=9,   USBOVRCURDET=10; };
+    template <> struct FuncSel<16> { constexpr static unsigned HSTX=0, SPI0RX=1,    UART0TX=2,  I2C0SDA=3,  PWM0A=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8,                 USBVBUSDET=10; };
+    template <> struct FuncSel<17> { constexpr static unsigned HSTX=0, SPI0RX=1,    UART0RX=2,  I2C0SCL=3,  PWM0B=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8,                 USBVBUSEN=10; };
+    template <> struct FuncSel<18> { constexpr static unsigned HSTX=0, SPI0RX=1,    UART0CTS=2, I2C1SDA=3,  PWM1A=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8,                 USBOVRCURDET=10; };
+    template <> struct FuncSel<19> { constexpr static unsigned HSTX=0, SPI0RX=1,    UART0RTS=2, I2C1SCL=3,  PWM1B=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8, QMICS1n=9,      USBVBUSDET=10; };
+    template <> struct FuncSel<20> {};
+    template <> struct FuncSel<21> {};
+    template <> struct FuncSel<22> {};
+    template <> struct FuncSel<23> {};
+    template <> struct FuncSel<24> {};
+    template <> struct FuncSel<25> { constexpr static unsigned         SPI0CSn=1,   UART0RX=2,  I2C0SCL=3,  PWM4B=4,    SIO=5, PIO0=6, PIO1=7, PIO2=8, CLKGPOUT3=9,    USBVBUSDET=10;};
+    template <> struct FuncSel<26> {};
+    template <> struct FuncSel<27> {};
+    template <> struct FuncSel<28> {};
+    template <> struct FuncSel<29> {};
     // clang-format on
 
     struct Control {
@@ -55,11 +85,11 @@ struct GPIO {
     };
 
     struct GPIORegPair {
-        Status  status;
+        Status status;
         Control control;
     };
 
-    GPIORegPair  array[32];
+    GPIORegPair array[32];
     GPIORegPair& operator[](unsigned i) { return array[i]; }
 };
 inline auto& gpio = *(GPIO*)(0x40028000);

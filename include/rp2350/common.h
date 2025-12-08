@@ -21,10 +21,10 @@ namespace sys {
 
 // Global config
 constexpr static uint64_t kXOSC  = 12'000'000;
-constexpr static uint64_t kSysHz = 270'000'000;
-constexpr static uint64_t kFBDiv = 90;
-constexpr static uint64_t kDiv1  = 4;
-constexpr static uint64_t kDiv2  = 1;
+constexpr static uint64_t kSysHz = 150'000'000;
+constexpr static uint64_t kFBDiv = 125;
+constexpr static uint64_t kDiv1  = 5;
+constexpr static uint64_t kDiv2  = 2;
 // Verify
 static_assert(16 <= kFBDiv && kFBDiv <= 320);
 static_assert(1 <= kDiv1 && kDiv1 <= 7);
@@ -37,12 +37,12 @@ static_assert(kXOSC * kFBDiv / (kDiv1 * kDiv2) == kSysHz);
 // Image definition [IMAGE_DEF]: section 5.9, "Metadata Block Details".
 struct [[gnu::packed]] ImageDef2350ARM {
     uint32_t start     = 0xffffded3; // Start magic
-    uint8_t  type      = 0x42;       //
-    uint8_t  size      = 0x01;       //
+    uint8_t type       = 0x42;       //
+    uint8_t size       = 0x01;       //
     uint16_t flags     = 0x1021;     // Item 0: CHIP=2350, CPU=ARM, EXE=1, S=2
-    uint8_t  sizeType  = 0xff;       // BLOCK_ITEM_LAST has a 2-byte size
+    uint8_t sizeType   = 0xff;       // BLOCK_ITEM_LAST has a 2-byte size
     uint16_t totalSize = 1;          // Total of preceding items' sizes (in words)
-    uint8_t  _pad      = 0;          //
+    uint8_t _pad       = 0;          //
     uint32_t link      = 0;          // No link since this is only 1 block
     uint32_t end       = 0xab123579; // End magic
 };
@@ -53,8 +53,12 @@ struct R32 {
     uint32_t& u32() { return *reinterpret_cast<uint32_t*>(this); }
 };
 
+struct U16 {
+    uint16_t& u16() { return *reinterpret_cast<uint16_t*>(this); }
+};
+
 template <class R, class NVR = __remove_volatile(R)> struct Update {
-    R*       reg_;
+    R* reg_;
     uint32_t val_;
 
     ~Update() { write(); }
@@ -77,5 +81,144 @@ template <class R> void update(R* reg, auto cb) {
     Update u(reg);
     cb(u);
 };
+
+struct DMA {
+    enum class DataSize : unsigned {
+        _8BIT  = 0,
+        _16BIT = 1,
+        _32BIT = 2,
+    };
+
+    struct Control {
+        unsigned enable       : 1; // 0
+        unsigned highPri      : 1; // 1
+        DataSize dataSize     : 2; // 3..2
+        unsigned incrRead     : 1; // 4
+        unsigned incrReadRev  : 1; // 5
+        unsigned incrWrite    : 1; // 6
+        unsigned incrWriteRev : 1; // 7
+        unsigned ringSize     : 4; // 11..8
+        unsigned ringSel      : 1; // 12
+        unsigned chainTo      : 4; // 16..13
+        unsigned treqSel      : 6; // 22..17
+        unsigned irqQuiet     : 1; // 23
+        unsigned bswap        : 1; // 24
+        unsigned sniffEnable  : 1; // 25
+        unsigned busy         : 1; // 26
+        unsigned              : 2; //
+        unsigned writeError   : 1; // 29
+        unsigned readError    : 1; // 30
+        unsigned ahbError     : 1; // 31
+    };
+
+    enum class Mode {
+        NORMAL = 0,
+        // TODO
+    };
+
+    struct TransCount {
+        unsigned count : 28; // 27..0
+        Mode mode      : 4;  // 21..28
+    };
+
+    struct Channel {
+        uintptr_t readAddr;
+        uintptr_t writeAddr;
+        TransCount transCount;
+        Control ctrlTrig;
+        Control ctrl;
+        unsigned z014;
+        unsigned z018;
+        TransCount transCountTrig;
+        unsigned z020;
+        unsigned z024;
+        unsigned z028;
+        uintptr_t writeAddrTrig;
+        unsigned z030;
+        unsigned z034;
+        unsigned z038;
+        uintptr_t readAddrTrig;
+    };
+    static_assert(sizeof(Channel) == 64);
+
+    struct IRQ {
+        uint32_t rawStatus; // 15..0 only
+        uint32_t enable;    // 15..0 only
+        uint32_t force;     // 15..0 only
+        uint32_t status;    // 15..0 only
+    };
+    static_assert(sizeof(IRQ) == 16);
+
+    struct Trigger {
+        uint32_t channels; // 15..0 only
+    };
+
+    Channel channels[15];     // 0x50000000, 0x50000040, ...
+    IRQ irqs[4];              // 0x50000400, 0x50000410, ...
+    uint32_t timers[4];       // 0x50000440, 0x50000444, ...
+    Trigger multiChanTrigger; // 0x50000450
+
+    constexpr static unsigned kDMAIRQs[4] {10, 11, 12, 13}; // p.84
+};
+inline auto& dma = *(DMA*)(0x50000000);
+
+struct HSTX {
+    struct CSR : R32 {
+        unsigned enable       : 1 {}; // 0
+        unsigned expandEnable : 1 {}; // 1
+        unsigned              : 2;    //
+        unsigned coupled      : 1 {}; // 4
+        unsigned coupleSel    : 2 {}; // 6..5
+        unsigned              : 1;    //
+        unsigned shift        : 5 {}; // 12..8
+        unsigned              : 3;    //
+        unsigned nShifts      : 5 {}; // 20..16
+        unsigned              : 3;    //
+        unsigned clkPhase     : 4 {}; // 27..24
+        unsigned clkDiv       : 4 {}; // 31..28
+    };
+
+    struct Bit : R32 {
+        unsigned selectP : 5 {}; // 4..0
+        unsigned         : 3;    //
+        unsigned selectN : 5 {}; // 12..8
+        unsigned         : 3;    //
+        unsigned invert  : 1 {}; // 16
+        unsigned clock   : 1 {}; // 17
+        unsigned         : 14;   //
+    };
+
+    struct ExShift : R32 {
+        // TODO
+        unsigned : 32;
+    };
+
+    struct ExTMDS : R32 {
+        // TODO
+        unsigned : 32;
+    };
+
+    CSR csr;
+    Bit bits[8];
+    ExShift expandShift;
+    ExTMDS expandTMDS;
+
+    // 12.11.8. List of FIFO registers [p.1213]
+
+    struct Status {
+        unsigned level       : 8;
+        unsigned full        : 1;
+        unsigned empty       : 1;
+        unsigned wroteOnFull : 1; // Write 1 to this to clear
+        unsigned             : 21;
+    };
+
+    struct FIFO {
+        Status stat;
+        uint32_t fifoWrite;
+    };
+    FIFO& fifo() { return *(FIFO*)(0x50600000); }
+};
+inline auto& hstx = *(HSTX*)(0x400c0000);
 
 } // namespace rp2350

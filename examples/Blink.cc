@@ -29,22 +29,10 @@ namespace rp2350::sys {
 
 using namespace rp2350;
 
-template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
-    Update u {&padsBank0.gpio[I]};
-    u->slewFast             = true;
-    u->drive                = PadsBank0::Drive::k12mA;
-    u->inputEnable          = false;
-    u->outputDisable        = false;
-    u->isolation            = false;
-    gpio[I].control.funcSel = funcSel;
-    sio.gpioOutEnbSet       = (1 << I);
-    sio.gpioOutClr          = (1 << I);
-}
-
 // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
     xosc.init();
-    sysPLL.init150MHz();
+    sysPLL.init();
 
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
     clocks.ref.div     = {.fraction = 0, .integer = 1};
@@ -62,12 +50,12 @@ template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SI
     ticks.proc1.cycles.count    = 12;
     ticks.proc1.control.enabled = true;
 
-    m33.ccr.unalignedTrap = true;
-    m33.ccr.div0Trap      = true;
+    m33.ccr().unalignedTrap = true;
+    m33.ccr().div0Trap      = true;
 
-    m33.sysTick.rvr         = 1000;
-    m33.sysTick.csr.enable  = 1;
-    m33.sysTick.csr.tickInt = 1;
+    m33.rvr()         = 1000;
+    m33.csr().enable  = 1;
+    m33.csr().tickInt = 1;
 
     resets.unreset(Resets::Bit::PADSBANK0);
     resets.unreset(Resets::Bit::IOBANK0);

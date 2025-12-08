@@ -5,7 +5,7 @@ AccessModifierOffset: -4
 DerivePointerAlignment: false
 IndentWidth: 4
 AlignConsecutiveAssignments: AcrossComments
-AlignConsecutiveDeclarations: AcrossComments
+# AlignConsecutiveDeclarations: AcrossComments
 AlignConsecutiveBitFields: Consecutive
 ReferenceAlignment: Left
 PointerAlignment: Left

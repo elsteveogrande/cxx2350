@@ -37,18 +37,24 @@ _ZN6rp23503sys10usageFaultEv:
 .thumb_func
 .p2align 2
 _ZN6rp23503sys5panicEv:
-    @ Stack will contain the following (ignoring possible FPU registers).
+    @ Save registers into a `PanicContext` which we'll create on the stack
+    @ and populate by pushing (in reverse field order).
+    @
+    @ Stack already contains the following:
     @ Pushed by processor on exception dispatch:
     @   xPSR,
     @   faulting instruction PC,
     @   LR (R14),
     @   R12,
     @   R3 through R0
+    @
     @ Followed by these which we'll push below:
     @   fault type in R2 (from above),
     @   exception data (in LR),
     @   R11 through R4,
     @   SP during fault (MSP or PSP)
+    @
+    @ (Note: no FPU regs saved)
 
     push  {r2}
     push  {lr}

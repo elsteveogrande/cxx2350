@@ -117,7 +117,7 @@ https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf
 | 3.1.9. TMDS encoder                                             |                 | Ⓧ |
 | 3.1.10. Interpolator                                            |                 | Ⓧ |
 ||||
-| **3.2. Interrupts**                                             | `interrupts.h`  | ✅ |
+| **3.2. Interrupts**                                             | `interrupts.{h,s}`  | ✅ |
 | 3.2.1. Non-maskable interrupt (NMI)                             |                 | Ⓧ |
 ||||
 | **3.3. Event signals (Arm)**                                    |                 | Ⓧ |

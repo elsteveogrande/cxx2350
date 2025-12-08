@@ -49,8 +49,8 @@ struct Clocks {
             unsigned            : 3; // 31..29
         };
 
-        Control  control;
-        Div      div;
+        Control control;
+        Div div;
         uint32_t selected;
     };
 
@@ -83,8 +83,8 @@ struct Clocks {
             unsigned            : 25; // 31..7
         };
 
-        Control  control;
-        Div      div;
+        Control control;
+        Div div;
         Selected selected;
     };
 
@@ -115,8 +115,8 @@ struct Clocks {
             unsigned            : 24; // 31..8
         };
 
-        Control  control;
-        Div      div;
+        Control control;
+        Div div;
         Selected selected;
     };
 
@@ -135,15 +135,15 @@ struct Clocks {
             unsigned            : 5;
             AuxSource auxSource : 3; // 7..5
             unsigned            : 2;
-            unsigned kill       : 1;  // 10
-            unsigned enable     : 1;  // 11
-            unsigned            : 16; // 27..12
-            unsigned enabled    : 1;  // 28
+            unsigned kill       : 1;    // 10
+            unsigned enable     : 1;    // 11
+            unsigned            : 16;   // 27..12
+            unsigned enabled    : 1 {}; // 28
             unsigned            : 3;
         };
 
-        Control  control;
-        Div      div;
+        Control control;
+        Div div;
         uint32_t selected;
     };
 
@@ -155,7 +155,25 @@ struct Clocks {
             GPIN0   = 3,
             GPIN1   = 4,
         };
-        // TODO
+
+        struct Control {
+            unsigned            : 5;    //
+            AuxSource auxSource : 3;    // 7..5
+            unsigned            : 2;    //
+            unsigned kill       : 1;    // 10
+            unsigned enable     : 1;    // 11
+            unsigned            : 4;    //
+            unsigned phase      : 2;    // 17..16
+            unsigned            : 2;    //
+            unsigned nudge      : 1 {}; // 20
+            unsigned            : 7;    //
+            unsigned enabled    : 1 {}; // 28
+            unsigned            : 3;    //
+        };
+
+        Control control;
+        Div div;
+        uint32_t selected;
     };
 
     struct USB {
@@ -186,9 +204,10 @@ struct Clocks {
     GPOut gpOut1; // 0x4001000c
     GPOut gpOut2; // 0x40010018
     GPOut gpOut3; // 0x40010024
-    Ref   ref;    // 0x40010030
-    Sys   sys;    // 0x4001003c
-    Peri  peri;   // 0x40010048
+    Ref ref;      // 0x40010030
+    Sys sys;      // 0x4001003c
+    Peri peri;    // 0x40010048
+    HSTX hstx;    // 0x40010054
     // TODO all the others
 };
 inline auto& clocks = *(Clocks*)(0x40010000);
