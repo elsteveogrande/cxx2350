@@ -21,10 +21,10 @@ namespace sys {
 
 // Global config
 constexpr static uint64_t kXOSC  = 12'000'000;
-constexpr static uint64_t kSysHz = 150'000'000;
+constexpr static uint64_t kSysHz = 125'000'000;
 constexpr static uint64_t kFBDiv = 125;
-constexpr static uint64_t kDiv1  = 5;
-constexpr static uint64_t kDiv2  = 2;
+constexpr static uint64_t kDiv1  = 4;
+constexpr static uint64_t kDiv2  = 3;
 // Verify
 static_assert(16 <= kFBDiv && kFBDiv <= 320);
 static_assert(1 <= kDiv1 && kDiv1 <= 7);
@@ -82,6 +82,8 @@ template <class R> void update(R* reg, auto cb) {
     cb(u);
 };
 
+// 12.6. DMA
+// 12.6.10. List of Registers
 struct DMA {
     enum class DataSize : unsigned {
         _8BIT  = 0,
@@ -89,6 +91,7 @@ struct DMA {
         _32BIT = 2,
     };
 
+    // p.1128
     struct Control {
         unsigned enable       : 1; // 0
         unsigned highPri      : 1; // 1
@@ -112,8 +115,9 @@ struct DMA {
     };
 
     enum class Mode {
-        NORMAL = 0,
-        // TODO
+        NORMAL       = 0,    // Decrement on each xfer until 0, then trigger CHAIN_TO
+        TRIGGER_SELF = 1,    // Like NORMAL but trigger self instead
+        ENDLESS      = 0x0f, // No decrement, no chain, no IRQ; transfer endlessly until ABORT
     };
 
     struct TransCount {
@@ -121,9 +125,10 @@ struct DMA {
         Mode mode      : 4;  // 21..28
     };
 
+    // p.1126
     struct Channel {
-        uintptr_t readAddr;
-        uintptr_t writeAddr;
+        uintptr_t readAddr;  // updates automatically each time a read completes
+        uintptr_t writeAddr; // updates automatically each time a write completes
         TransCount transCount;
         Control ctrlTrig;
         Control ctrl;
@@ -141,6 +146,7 @@ struct DMA {
     };
     static_assert(sizeof(Channel) == 64);
 
+    // p.1132
     struct IRQ {
         uint32_t rawStatus; // 15..0 only
         uint32_t enable;    // 15..0 only
@@ -162,7 +168,10 @@ struct DMA {
 };
 inline auto& dma = *(DMA*)(0x50000000);
 
+// 12.11. HSTX
 struct HSTX {
+    // 12.11.7. List of control registers [p.1209]
+
     struct CSR : R32 {
         unsigned enable       : 1 {}; // 0
         unsigned expandEnable : 1 {}; // 1
@@ -188,14 +197,27 @@ struct HSTX {
         unsigned         : 14;   //
     };
 
+    // p.1212
     struct ExShift : R32 {
-        // TODO
-        unsigned : 32;
+        unsigned rawShift   : 5; // 4..0
+        unsigned            : 3; //
+        unsigned rawNShifts : 5; // 12..8
+        unsigned            : 3; //
+        unsigned encShift   : 5; // 20..16
+        unsigned            : 3; //
+        unsigned encNShifts : 5; // 28..24
+        unsigned            : 3; //
     };
 
+    // p.1212
     struct ExTMDS : R32 {
-        // TODO
-        unsigned : 32;
+        unsigned l0Rot   : 5; // 4..0
+        unsigned l0NBits : 3; // 7..5
+        unsigned l1Rot   : 5; // 4..0
+        unsigned l1NBits : 3; // 7..5
+        unsigned l2Rot   : 5; // 4..0
+        unsigned l2NBits : 3; // 7..5
+        unsigned         : 8; //
     };
 
     CSR csr;

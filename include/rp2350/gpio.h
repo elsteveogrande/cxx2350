@@ -131,7 +131,7 @@ struct SIO : R32 {
 };
 inline auto& sio = *(SIO*)(0xd0000000);
 
-template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
+template <uint8_t I> void initOutput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
     gpio[I].control.funcSel = funcSel;
     sio.gpioOutEnbSet       = (1 << I);
     sio.gpioOutClr          = (1 << I);
@@ -154,7 +154,7 @@ template <uint8_t I> void initGPIOOutput(unsigned funcSel = GPIO::FuncSel<I>::SI
     }
 }
 
-template <uint8_t I> void initGPIOInput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
+template <uint8_t I> void initInput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
     sio.gpioOutEnbClr = (1 << I);
 
     {

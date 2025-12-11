@@ -32,23 +32,28 @@ namespace rp2350::sys {
 using namespace rp2350;
 
 template <uint16_t N> struct Buffer {
-    uint8_t  buf[N];
     uint16_t head {0}; // next read / pop / dequeue pos
     uint16_t tail {0}; // next write / push / enqueue pos
+    uint8_t buf[N];
 
-    size_t size() const { return ((tail + N) - head) % N; }
-    bool   empty() const { return head == tail; }
-    bool   full() const { return size() == N - 1; }
+    size_t size() const { return (tail - head) % N; }
+    bool empty() const { return head == tail; }
+    bool full() const { return size() == N - 1; }
 
     void push(uint8_t x) {
-        if (!full()) { buf[tail++] = x; }
-    }
-    uint8_t pop() {
-        if (!empty()) {
-            return buf[head++];
-        } else {
-            return 0xff;
+        if (!full()) {
+            buf[tail] = x;
+            tail      = (tail + 1) % N;
         }
+    }
+
+    uint8_t pop() {
+        uint8_t ret = 0xff;
+        if (!empty()) {
+            ret  = buf[head];
+            head = (head + 1) % N;
+        }
+        return ret;
     }
 };
 
@@ -79,12 +84,7 @@ void putS(char const* s) {
     while (*s) { putC(*s++); }
 }
 
-[[clang::optnone]]
 void uart0IRQ() {
-    if (uart0.rxStatus.u32()) {
-        uart0.rxStatus.u32() = 0x0f; // clear all bits
-        return;
-    }
     while (!uart0.flags.rxEmpty && !rxBuffer.full()) { rxBuffer.push(uart0.data.data); }
     while (!uart0.flags.txFull && !txBuffer.empty()) { uart0.data.data = txBuffer.pop(); }
     uart0.intClear.u32() = 0x7ff;
@@ -122,25 +122,21 @@ void uart0IRQ() {
     resets.unreset(Resets::Bit::PADSBANK0);
     resets.unreset(Resets::Bit::IOBANK0);
 
-    initGPIOOutput<25>();     // config LED
+    initOutput<25>();         // config LED
     sio.gpioOutSet = 1 << 25; // turn it on
 
-    initGPIOOutput<0>(GPIO::FuncSel<0>::UART0TX);
-    // initGPIOInput<1>(GPIO::FuncSel<1>::UART0RX);
-
-    update(&clocks.peri.control, [&](auto& _) {
-        _->auxSource = Clocks::Peri::AuxSource::PLL_SYS;
-        _->kill      = false;
-        _->enable    = true;
-    });
-
-    clocks.peri.div = {.fraction = 0, .integer = 1};
+    initOutput<0>(GPIO::FuncSel<0>::UART0TX);
+    initInput<1>(GPIO::FuncSel<1>::UART0RX);
 
     sys::irqHandlers[uart0.irqn()] = uart0IRQ;
     resets.reset(Resets::Bit::UART0);
     resets.unreset(Resets::Bit::UART0);
-    m33.enableIRQ(uart0.irqn());
     uart0.init(9600);
+    m33.enableIRQ(uart0.irqn());
 
-    sys::panic();
+    while (true) {
+        putHex(4, 0xbeef);
+        putS(" hello ");
+        sys::Insns().wfi();
+    }
 }

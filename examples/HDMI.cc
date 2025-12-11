@@ -1,50 +1,3 @@
-/*
-
-HDMI with HSTX video (and eventually audio) generator.
-Generates 848x480 @60p on a Pico2 at 150MHz (effective 300MHz DDR).
-That has a familiar vertical resolution with an appropriately-scaled
-horizontal resolution (i.e. nearest multiple of 8 to a true 1.777).
-Actual ASR is 1.766, which is -0.6% off target (if ratio-ratios makes sense).
-
-https://tomverbeure.github.io/video_timings_calculator?horiz_pixels=848&vert_pixels=480
-gives us the following data.  Thank you Tom for this excellent calculator!
-
-I plugged in the resolution, along with exact 60 Hz frame rate.
-I added HBlank and VBlank times to make the total width and height (in pixel-times)
-exactly 1000x500, totaling 300Mbit/sec bandwidth.  I chose front/back porch and sync
-durations roughly in line with CVT and CEA standards.
-
-Walking through the HSTX section of the datasheet:
-
-Section 12.11.3.2 has an example (conveniently) for DVI (HDMI uses the same protocol).
-We'll have the FIFO consuming 32-bit words, each with three 10-bit fields.
-
-We communicate this mapping to the CSR and BITn registers.
-This sets up for 5 periods, shifting right by 2 after each.
-Each period is DDR, so a bit is transferred on the up and down parts of the clock,
-so we get 10 bits total.
-
-CSR:   NSHIFTS=5, SHIFT=2
-BIT0:  selP=0, selN=1, inv=0
-BIT1:  selP=0, selN=1, inv=1
-BIT2:  selP=10, selN=11, inv=0
-BIT3:  selP=10, selN=11, inv=1
-BIT4:  selP=20, selN=21, inv=0
-BIT5:  selP=20, selN=21, inv=1
-
-p.1206 explains the clock signal which we'll set up as:
-BIT6:  clk=1, inv=0
-BIT7:  clk=1, inv=1
-
-Section 12.11.4.1 shows how to create a center-aligned clock, which we also will use.
-p.1207, "For double-data-rate data, with active rising and active falling edges":
-CSR.CLKDIV=2, CSR.CLKPHASE=1
-
-Example HSTX app for DVI:
-https://github.com/raspberrypi/pico-examples/blob/master/hstx/dvi_out_hstx_encoder/dvi_out_hstx_encoder.c
-
-*/
-
 #include <cxx20/cxxabi.h>
 #include <rp2350/clocks.h>
 #include <rp2350/common.h>
@@ -59,15 +12,31 @@ https://github.com/raspberrypi/pico-examples/blob/master/hstx/dvi_out_hstx_encod
 #include <rp2350/uart.h>
 #include <rp2350/xoscpll.h>
 
+// For 640x480 at appx. 60fps
+static_assert(rp2350::sys::kSysHz == 125'000'000);
+constexpr static unsigned kHActive     = 640;
+constexpr static unsigned kVActive     = 480;
+constexpr static unsigned kHBlankFront = 16;
+constexpr static unsigned kHBlankSync  = 96;
+constexpr static unsigned kHBlankBack  = 48;
+constexpr static unsigned kHBlank      = kHBlankFront + kHBlankSync + kHBlankBack;
+constexpr static unsigned kVBlankFront = 10;
+constexpr static unsigned kVBlankSync  = 2;
+constexpr static unsigned kVBlankBack  = 33;
+constexpr static unsigned kVBlank      = kVBlankFront + kVBlankSync + kVBlankBack;
+constexpr static unsigned kHTotal      = kHActive + kHBlank;
+constexpr static unsigned kVTotal      = kVActive + kVBlank;
+
 namespace rp2350::sys {
 
-// Need to define a couple of structures in our main file so that they are baked into the ELF.
-// These two are given `section` attributes so that they can be placed at specific flash
-// addresses (see `layout.ld`).
+// Need to define a couple of structures in our main file so that they are baked into
+// the ELF. These two are given `section` attributes so that they can be placed at
+// specific flash addresses (see `layout.ld`).
 
 // Interrupt vectors are needed for the thing to start; this will live at flash address
 // `0x10000000`. It can live in a different address but the default is fine.
-[[gnu::used]] [[gnu::retain]] [[gnu::section(".vec_table")]] ARMVectors const gARMVectors;
+[[gnu::used]] [[gnu::retain]] [[gnu::section(
+    ".vec_table")]] ARMVectors const gARMVectors;
 
 // Image definition is required for the RP2 bootloader; this will live at flash address
 // `0x10000100`.
@@ -89,16 +58,21 @@ static_assert(sizeof(TMDS) == 4);
 struct TERC {
     unsigned code : 10;
     constexpr operator unsigned() const { return unsigned(code); };
-    constexpr TERC operator~() const { return {.code = unsigned(code ^ 0b1111111111)}; }
 };
 
 // For encoding 4 data bits
 constexpr static TERC kTERC[16] {
-    {.code = 0b1010011100}, {.code = 0b1001100011}, {.code = 0b1011100100}, {.code = 0b1011100010},
-    {.code = 0b0101110001}, {.code = 0b0100011110}, {.code = 0b0110001110}, {.code = 0b0100111100},
-    {.code = 0b1011001100}, {.code = 0b0100111001}, {.code = 0b0110011100}, {.code = 0b1011000110},
-    {.code = 0b1010001110}, {.code = 0b1001110001}, {.code = 0b0101100011}, {.code = 0b1011000011},
+    {.code = 0b1010011100}, {.code = 0b1001100011}, {.code = 0b1011100100},
+    {.code = 0b1011100010}, {.code = 0b0101110001}, {.code = 0b0100011110},
+    {.code = 0b0110001110}, {.code = 0b0100111100}, {.code = 0b1011001100},
+    {.code = 0b0100111001}, {.code = 0b0110011100}, {.code = 0b1011000110},
+    {.code = 0b1010001110}, {.code = 0b1001110001}, {.code = 0b0101100011},
+    {.code = 0b1011000011},
 };
+
+// Used in preambles and data guards
+constexpr static TERC kTERC8 = kTERC[8];
+constexpr static TERC kTERC8n {kTERC8.code};
 
 // For encoding 2 control bits:
 // CH0: D0=HSYNC  D1=VSYNC
@@ -115,6 +89,7 @@ constexpr static TERC kControl[4] {
 // TODO: use HSTX's expander or the standalone TMDS converter.
 // For now use a fixed table with reasonable patterns (almost-balanced ones and zeros).
 // Generated by `misc/tablegen.py`.
+// Uses "Limited range" of 16..235 (see "6.6 Video Quantization Ranges")
 constexpr static TERC kColors[32] {
     {.code = 0b0111110000}, /*  16 (5 ones) */
     {.code = 0b0111110010}, /*  23 (6 ones) */
@@ -150,11 +125,13 @@ constexpr static TERC kColors[32] {
     {.code = 0b0101011001}, /* 234 (5 ones) */
 };
 
-TMDS color(uint8_t r, uint8_t g, uint8_t b) {
+[[gnu::pure]]
+constexpr TMDS color(uint8_t r, uint8_t g, uint8_t b) {
     return {.ch0 = kColors[r], .ch1 = kColors[g], .ch2 = kColors[b]};
 }
 
 // Encode 6 bits (2 bits across 3 channels)
+[[gnu::pure]]
 constexpr TMDS control(uint8_t ch2, uint8_t ch1, uint8_t ch0) {
     return {
         .ch0 = kControl[ch0 & 0x03].code,
@@ -164,76 +141,102 @@ constexpr TMDS control(uint8_t ch2, uint8_t ch1, uint8_t ch0) {
 }
 
 // Encode 6 bits (2 bits across 3 channels): CTL3..0, plus set CH0 ctl bits for sync
+[[gnu::pure]]
 constexpr TMDS control(uint8_t ch2, uint8_t ch1, bool vsync, bool hsync) {
     uint8_t v = vsync ? 0b10 : 0b00;
     uint8_t h = hsync ? 0b01 : 0b00;
     return control(ch2, ch1, v | h);
 }
 
-constexpr TMDS idle() { return control(0x00, 0x00, 0x00); }
-constexpr TMDS sync(bool vsync, bool hsync) { return control(0x00, 0x00, vsync, hsync); }
-constexpr TMDS hsync() { return control(0x00, 0x00, false, true); }
+[[gnu::pure]]
+constexpr TMDS idle() {
+    return control(0x00, 0x00, 0x00);
+}
 
+[[gnu::pure]]
+constexpr TMDS sync(bool vsync, bool hsync) {
+    return control(0x00, 0x00, vsync, hsync);
+}
+
+[[gnu::pure]]
+constexpr TMDS hsync() {
+    return control(0x00, 0x00, false, true);
+}
+
+[[gnu::pure]]
 constexpr TMDS dataPreamble(bool hsync = false, bool vsync = false) {
     // Table 5-2; watch out for the CTL bit order.  CTL3:0 = 0101
     return control(0b01, 0b01, vsync, hsync);
 }
 
+[[gnu::pure]]
 constexpr TMDS videoPreamble(bool hsync = false, bool vsync = false) {
     // Table 5-2; watch out for the CTL bit order.  CTL3:0 = 0001
     return control(0b00, 0b01, vsync, hsync);
 }
 
+[[gnu::pure]]
 constexpr TMDS dataGuard(bool hsync = false, bool vsync = false) {
     auto v = vsync ? 0b0010 : 0;
     auto h = hsync ? 0b0001 : 0;
-    return {.ch0 = kTERC[0b1100 | v | h].code, .ch1 = ~kTERC[8], .ch2 = ~kTERC[8]};
+    return {.ch0 = kTERC[0b1100 | v | h].code, .ch1 = kTERC8n, .ch2 = kTERC8n};
 }
 
-constexpr TMDS videoGuard() { return {.ch0 = kTERC[8], .ch1 = ~kTERC[8], .ch2 = kTERC[8]}; }
-
-// Write the above sequence into buf (should be length 152)
-constexpr void genVideoHBlank(TMDS* buf) {
-    unsigned i = 0;
-    // We'll start the line in a control period
-    while (i < 24) { buf[i++] = idle(); }
-    while (i < 46) { buf[i++] = hsync(); }
-    while (i < 54) { buf[i++] = dataPreamble(true); } // start preamble (hsync continues)
-    while (i < 56) { buf[i++] = dataGuard(true); }    // data guard band (hsync continues)
-    // Data period starts after the data guard band.
-    while (i < 88) { buf[i++] = sync(false, false); }  // nop, placeholder for audio sample
-    while (i < 120) { buf[i++] = sync(false, false); } // nop, placeholder for audio sample
-    while (i < 122) { buf[i++] = dataGuard(); }        // data guard also ends data period
-    // Back to a control period
-    while (i < 142) { buf[i++] = idle(); }
-    while (i < 154) { buf[i++] = videoPreamble(); }
-    while (i < 156) { buf[i++] = videoGuard(); }
-    // End of the hblank line "header"; after this we send pixels from `buf.pixels`
+[[gnu::pure]]
+constexpr TMDS videoGuard() {
+    return {.ch0 = kTERC8, .ch1 = kTERC8n, .ch2 = kTERC8};
 }
 
-struct TMDSBuffer {
-    TMDS hblank[152];
-    TMDS pixels[848];
+struct Buffer {
+    unsigned cmd {};
+    TMDS hblank[kHBlank];
+    TMDS pixels[kHActive]; // TODO: use TMDS commands to generate colors
+
+    void init() {
+        unsigned i  = 0;
+        unsigned to = 0;
+        // We'll start the line in a control period
+        to += kHBlankFront;
+        while (i < to) { hblank[i++] = idle(); }
+        to += kHBlankSync;
+        while (i < to) { hblank[i++] = hsync(); }
+        to += kHBlankBack;
+        while (i < to) { hblank[i++] = idle(); }
+
+        // while (i < 54) { hblank[i++] = dataPreamble(true); } // start preamble (hsync
+        // continues) while (i < 56) { hblank[i++] = dataGuard(true); }    // data guard
+        // band (hsync continues)
+        // // Data period starts after the data guard band.
+        // while (i < 88) { hblank[i++] = sync(false, false); }  // nop, placeholder for
+        // audio sample while (i < 120) { hblank[i++] = sync(false, false); } // nop,
+        // placeholder for audio sample while (i < 122) { hblank[i++] = dataGuard(); }
+        // // data guard also ends data period
+        // // Back to a control period
+        // while (i < 142) { hblank[i++] = idle(); }
+        // while (i < 154) { hblank[i++] = videoPreamble(); }
+        // while (i < 156) { hblank[i++] = videoGuard(); }
+        // // End of the hblank line "header"; after this we send pixels from
+        // `buf.pixels`
+    }
 };
-static_assert(sizeof(TMDSBuffer) <= 4096);
+static_assert(sizeof(Buffer) <= 4096);
 
-// We'll claim SRAM8 and SRAM9 for two separately-bussed buffers (see Section 2.2.3 "SRAM").
-// We purposely avoid accessing (for read or write) the region of memory currently being
-// used by DMA so as to avoid stalls or jitter.
-auto& bufA = *(TMDSBuffer*)(0x20080000); // Even lines
-auto& bufB = *(TMDSBuffer*)(0x20081000); // Odd lines
+// We'll claim SRAM8 and SRAM9 for two separately-bussed buffers (see Section 2.2.3
+// "SRAM"). We purposely avoid accessing (for read or write) the region of memory
+// currently being used by DMA so as to avoid stalls or jitter.
+auto& bufA = *(Buffer*)(0x20080000); // Even lines
+auto& bufB = *(Buffer*)(0x20081000); // Odd lines
 
-// Output line: the line currently being displayed.
-// Lines 0-19 are vblank; 20-499 are for active video and data islands.
 unsigned currentLine  = 0;
 unsigned currentFrame = 0;
 
-// Return a reference to a TMDS buffer (one of `bufA` or `bufB`) depending on line number
+// Return a reference to a TMDS buffer (one of `bufA` or `bufB`) depending on line
+// number
 constexpr auto& lineBuffer(unsigned oline) { return (oline & 1) ? bufB : bufA; }
 
 // Generate an empty (no-pixel, no-data) line for the vsync period.
 // Line will contain hsync pulse (and vsync throughout, if requested).
-void prepVBlankLine(TMDSBuffer& buf, bool vsync) {
+void prepVBlankLine(Buffer& buf, bool vsync) {
     unsigned i = 0;
     while (i < 24) { buf.hblank[i++] = sync(vsync, false); }
     while (i < 46) { buf.hblank[i++] = sync(vsync, true); } // hsync
@@ -243,22 +246,34 @@ void prepVBlankLine(TMDSBuffer& buf, bool vsync) {
 }
 
 // Write pixels into `buf.pixels`.  `displayLine` is in range 0 to 479.
-void prepVideoLine(TMDSBuffer& buf, unsigned displayLine) {
-    genVideoHBlank(buf.hblank);
+void prepVideoLine(Buffer& buf, unsigned displayLine) {
     (void)displayLine;
-    for (unsigned x = 0; x < 848; x++) { buf.pixels[x] = color(30, 10, 20); }
+
+    unsigned i  = 0;
+    unsigned to = 0;
+    // We'll start the line in a control period
+    to += kHBlankFront;
+    while (i < to) { buf.hblank[i++] = idle(); }
+    to += kHBlankSync;
+    while (i < to) { buf.hblank[i++] = hsync(); }
+    to += kHBlankBack;
+    while (i < to) { buf.hblank[i++] = idle(); }
+
+    for (unsigned x = 0; x < 848; x++) {
+        uint8_t r     = 20; // (displayLine >> 16) & 0x1f;
+        uint8_t g     = 5;  // displayLine & 0x1f;
+        uint8_t b     = 22; //(currentFrame >> 3) & 0x1f;
+        buf.pixels[x] = color(r, g, b);
+    }
 }
 
 void prepLine() {
-    // Some of this can be prepped and reused (like the vblank lines)
-    // but I want this to go through the exercise of generating data
-    // for every single pixel, every single line, to test timing.
     auto& buf = lineBuffer(currentLine);
-    if (currentLine < 6) {
+    if (currentLine < kVBlankFront) {
         prepVBlankLine(buf, false);
-    } else if (currentLine < 14) {
+    } else if (currentLine < kVBlankFront + kVBlankSync) {
         prepVBlankLine(buf, true);
-    } else if (currentLine < 20) {
+    } else if (currentLine < kVBlankFront + kVBlankSync + kVBlankBack) {
         prepVBlankLine(buf, false);
     } else {
         prepVideoLine(buf, currentLine - 20);
@@ -321,90 +336,34 @@ void initSystemTicks() {
 
 using namespace rp2350;
 
-constexpr static unsigned kHSTXDREQ   = 52; // p.1102
-constexpr static unsigned kDMAChannel = 0;
-constexpr static unsigned kDMADREQIRQ = 0;
-constexpr static unsigned kDMAIRQ     = DMA::kDMAIRQs[kDMADREQIRQ];
+constexpr static unsigned kHSTXDREQ    = 52; // p.1102
+constexpr static unsigned kDMAChannelA = 0;
+constexpr static unsigned kDMAChannelB = 1;
+constexpr static unsigned kIRQDMA0     = DMA::kDMAIRQs[0];
 
 void txNextLine() {
     using rp2350::DMA;
 
-    auto& dma          = rp2350::dma.channels[0];
-    dma.writeAddr      = uintptr_t(&lineBuffer(currentLine));
-    dma.transCountTrig = {.count = 1000, .mode = DMA::Mode::NORMAL};
-
-    if (++currentLine == 500) {
+    ++currentLine;
+    if (currentLine == kVTotal) {
         currentLine = 0;
         ++currentFrame;
     }
-    prepLine();
 
-    rp2350::dma.irqs[kDMADREQIRQ >> 4].status = (1u << 0); // clear interrupt flag
+    // prepLine();
+
+    auto dmaX      = (currentFrame & 1) ? kDMAChannelB : kDMAChannelA;
+    auto& dma      = rp2350::dma.channels[dmaX];
+    dma.readAddr   = uintptr_t(&lineBuffer(currentLine));
+    dma.transCount = {.count = kHTotal, .mode = DMA::Mode::NORMAL};
+
+    rp2350::dma.irqs[0].status = (1u << dmaX);
 }
 
-template <unsigned K> void stuff(TMDS t) {
-    while (hstx.fifo().stat.level >= 8 - K) { sys::Insns().nop(); }
-    for (unsigned i = 0; i < K; i++) { *((uint32_t volatile*)&hstx.fifo().fifoWrite) = t; }
-}
-
-void stuffIntoFIFO() {
-
-    auto vb_nosync = sync(false, false);
-    auto vb_hsync  = sync(false, true);
-    auto vb_vsync  = sync(true, false);
-    auto vb_hvsync = sync(true, true);
-    auto vp        = videoPreamble();
-    auto vg        = videoPreamble();
-    auto c         = color(30, 10, 20);
-
-    while (true) {
-        unsigned x = 0;
-
-        // while (x++ < 6) { stuff<4>(vb_nosync); }
-        // while (x++ < 14) { stuff<4>(vb_hsync); }
-        // while (x++ < 250) { stuff<4>(vb_nosync); }
-
-        if (currentLine < 6) {
-            while (x++ < 6) { stuff<4>(vb_nosync); }
-            while (x++ < 14) { stuff<4>(vb_hsync); }
-            while (x++ < 250) { stuff<4>(vb_nosync); }
-        } else if (currentLine < 14) {
-            while (x++ < 6) { stuff<4>(vb_vsync); }
-            while (x++ < 14) { stuff<4>(vb_hvsync); }
-            while (x++ < 250) { stuff<4>(vb_vsync); }
-        } else if (currentLine < 20) {
-            while (x++ < 6) { stuff<4>(vb_nosync); }
-            while (x++ < 14) { stuff<4>(vb_hsync); }
-            while (x++ < 250) { stuff<4>(vb_nosync); }
-        } else if (currentLine < 500) {
-            while (x++ < 12) { stuff<2>(vb_nosync); }
-            while (x++ < 28) { stuff<2>(vb_hsync); }
-            while (x++ < 71) { stuff<2>(vb_nosync); }
-            while (x++ < 75) { stuff<2>(vp); }
-            while (x++ < 76) { stuff<2>(vg); }
-            x = 0;
-            while (x++ < 212) { stuff<4>(c); }
-
-            //     // while (x++ < 24) { stuff(vb_nosync); }
-            //     // while (x++ < 56) { stuff(vb_hsync); }
-            //     // while (x++ < 142) { stuff(vb_nosync); }
-            //     // while (x++ < 150) { stuff(vp); }
-            //     // while (x++ < 152) { stuff(vg); }
-            //     // while (x++ < 1000) { stuff(c); }
-        }
-
-        ++currentLine;
-        if (currentLine == 500) {
-            currentLine = 0;
-            ++currentFrame;
-        }
-
-        if (currentFrame % 60 < 30) {
-            sio.gpioOutSet = 1 << 25;
-        } else {
-            sio.gpioOutClr = 1 << 25;
-        }
-    }
+[[gnu::always_inline]]
+void stuffU32(auto t) {
+    while (hstx.fifo().stat.full) { sys::Insns().nop(); }
+    *((uint32_t volatile*)&hstx.fifo().fifoWrite) = uint32_t(t);
 }
 
 // The actual application startup code, called by reset handler
@@ -419,69 +378,252 @@ void stuffIntoFIFO() {
     resets.unreset(Resets::Bit::PADSBANK0, true);
     resets.unreset(Resets::Bit::IOBANK0, true);
 
-    initGPIOOutput<25>(); // config LED
-
-    // some DMA sample code on p.1108
-    // See also sdk example:
-    // https://github.com/raspberrypi/pico-examples/blob/master/hstx/dvi_out_hstx_encoder/dvi_out_hstx_encoder.c
-    // Default DMA config:
-    // https://www.raspberrypi.com/documentation/pico-sdk/hardware.html#group_channel_config_1ga7a9107effdfa5f18b9577b4925589b4b
-
-    sys::initHSTXClock();
-    resets.unreset(Resets::Bit::HSTX, true);
-
-    initGPIOOutput<12>(GPIO::FuncSel<12>::HSTX);
-    initGPIOOutput<13>(GPIO::FuncSel<13>::HSTX);
-    initGPIOOutput<14>(GPIO::FuncSel<14>::HSTX);
-    initGPIOOutput<15>(GPIO::FuncSel<15>::HSTX);
-    initGPIOOutput<16>(GPIO::FuncSel<16>::HSTX);
-    initGPIOOutput<17>(GPIO::FuncSel<17>::HSTX);
-    initGPIOOutput<18>(GPIO::FuncSel<18>::HSTX);
-    initGPIOOutput<19>(GPIO::FuncSel<19>::HSTX);
-
-    // See: p.1206: "As a final, concrete example, take TMDS (used in DVI): ..."
-    // and: p.1207: "For double-data-rate data, with active rising and active falling edges,
-    // ..." The example project uses clkdiv of 5:
-    // https://github.com/raspberrypi/pico-examples/blob/master/hstx/dvi_out_hstx_encoder/dvi_out_hstx_encoder.c
-    hstx.bits[0] = {.selectP = 0, .selectN = 1, .invert = 0};
-    hstx.bits[1] = {.selectP = 0, .selectN = 1, .invert = 1};
-    hstx.bits[2] = {.selectP = 10, .selectN = 11, .invert = 0};
-    hstx.bits[3] = {.selectP = 10, .selectN = 11, .invert = 1};
-    hstx.bits[4] = {.selectP = 20, .selectN = 21, .invert = 0};
-    hstx.bits[5] = {.selectP = 20, .selectN = 21, .invert = 1};
-    hstx.bits[6] = {.invert = 0, .clock = true};
-    hstx.bits[7] = {.invert = 1, .clock = true};
-    hstx.csr     = {.enable = true, .shift = 2, .nShifts = 5, .clkDiv = 5};
-
-    currentFrame = 0;
-    currentLine  = 0;
-    prepLine();
-
-    stuffIntoFIFO(); ///////////////////////////////////////////////////////////////
+    initOutput<25>(); // config LED
 
     resets.unreset(Resets::Bit::DMA, true);
 
-    sys::irqHandlers[kDMAIRQ] = txNextLine;
+    resets.reset(Resets::Bit::HSTX);
+    sys::initHSTXClock();
 
-    dma.irqs[kDMADREQIRQ >> 4].enable = (1u << 0);
-    m33.enableIRQ(kDMAIRQ);
+    initOutput<12>(GPIO::FuncSel<12>::HSTX);
+    initOutput<13>(GPIO::FuncSel<13>::HSTX);
+    initOutput<14>(GPIO::FuncSel<14>::HSTX);
+    initOutput<15>(GPIO::FuncSel<15>::HSTX);
+    initOutput<16>(GPIO::FuncSel<16>::HSTX);
+    initOutput<17>(GPIO::FuncSel<17>::HSTX);
+    initOutput<18>(GPIO::FuncSel<18>::HSTX);
+    initOutput<19>(GPIO::FuncSel<19>::HSTX);
+    sio.gpioOutClr = 0x000ff000;
+    for (unsigned i = 0; i < 10000000; i++) { sys::Insns().nop(); }
+    resets.unreset(Resets::Bit::HSTX, true);
 
-    auto& ch = dma.channels[0];
-    update(&ch.ctrl, [](Update<decltype(ch.ctrl)>& _) {
+    initOutput<12>(GPIO::FuncSel<12>::HSTX);
+    initOutput<13>(GPIO::FuncSel<13>::HSTX);
+    initOutput<14>(GPIO::FuncSel<14>::HSTX);
+    initOutput<15>(GPIO::FuncSel<15>::HSTX);
+    initOutput<16>(GPIO::FuncSel<16>::HSTX);
+    initOutput<17>(GPIO::FuncSel<17>::HSTX);
+    initOutput<18>(GPIO::FuncSel<18>::HSTX);
+    initOutput<19>(GPIO::FuncSel<19>::HSTX);
+
+    // See: p.1206: "As a final, concrete example, take TMDS (used in DVI): ..."
+    // and: p.1207: "For double-data-rate data, with active rising and active falling
+    // ..." (But note that the example project uses clkdiv of 5)
+    // https://github.com/raspberrypi/pico-examples/blob/master/hstx/dvi_out_hstx_encoder/dvi_out_hstx_encoder.c
+    //
+    // This will use the same pinout:
+    // Pico2 pin:   16    17    18    19    20    21    22    23    24    25
+    // HSTX bit:     0     1   (gnd)   2     3     4     5   (gnd)   6     7
+    // GPIO:        12    13   (gnd)  14    15    16    17   (gnd)  18    19
+    // DVI signal:   + CHO -           + CLK -     + CH2 -           + CH1 -
+
+    hstx.bits[0] = {.selectP = 0, .selectN = 1, .invert = 0};
+    hstx.bits[1] = {.selectP = 0, .selectN = 1, .invert = 1};
+    hstx.bits[2] = {.invert = 0, .clock = true};
+    hstx.bits[3] = {.invert = 1, .clock = true};
+    hstx.bits[4] = {.selectP = 20, .selectN = 21, .invert = 0};
+    hstx.bits[5] = {.selectP = 20, .selectN = 21, .invert = 1};
+    hstx.bits[6] = {.selectP = 10, .selectN = 11, .invert = 0};
+    hstx.bits[7] = {.selectP = 10, .selectN = 11, .invert = 1};
+
+    // Configure the HSTX expander for RGB565.
+    // The datasheet and even the DVI example don't make this very clear.
+    // We'll look at the setup for RGB332 and (with a little detective work) set up for
+    // RGB565.
+    //
+    // Configure HSTX's TMDS encoder for RGB332
+    // hstx_ctrl_hw->expand_tmds =
+    //     2 << HSTX_CTRL_EXPAND_TMDS_L2_NBITS_LSB | 0 <<
+    //     HSTX_CTRL_EXPAND_TMDS_L2_ROT_LSB | 2 << HSTX_CTRL_EXPAND_TMDS_L1_NBITS_LSB |
+    //     29 << HSTX_CTRL_EXPAND_TMDS_L1_ROT_LSB | 1 <<
+    //     HSTX_CTRL_EXPAND_TMDS_L0_NBITS_LSB | 26 << HSTX_CTRL_EXPAND_TMDS_L0_ROT_LSB;
+    //
+    // Pixels (TMDS) come in 4 8-bit chunks. Control symbols (RAW) are an entire 32-bit
+    // word. hstx_ctrl_hw->expand_shift = 0
+    //     | 4 << HSTX_CTRL_EXPAND_SHIFT_ENC_N_SHIFTS_LSB
+    //     | 8 << HSTX_CTRL_EXPAND_SHIFT_ENC_SHIFT_LSB
+    //     | 1 << HSTX_CTRL_EXPAND_SHIFT_RAW_N_SHIFTS_LSB
+    //     | 0 << HSTX_CTRL_EXPAND_SHIFT_RAW_SHIFT_LSB;
+    //
+    // In the DVI example, four 8-bit pixels are packed into a 32-bit word.
+    //
+    // 31....25 24....17 16.....8 7......0
+    // [Pixel3] [Pixel2] [Pixel1] [Pixel0]
+    //
+    // ENC_N_SHIFTS is 4 to corresponding to the four pixels, and ENC_SHIFT is 8.
+    // The RGB components in each pixel is arranged like:
+    //
+    //   76543210
+    //   RRRGGGBB
+    //
+    // R, G, and B have bit widths of 3, 3, and 2; the Lk_NBITS for lanes 2, 1, and 0
+    // are those bit widths minus 1, so they're 2, 2, and 1.
+    //
+    // The rotation fields are 0(R), 29(G), and 26(B).
+    // So R (L0) stays where it is, and gets zero-extended:    RRR-----
+    // G (L1) rotates right 29 (equivalently, 3 to the left):  GGG-----
+    // and B (L2) rotates right by 26 (i.e. left-rotate 6):    BB------
+    //
+    // Let's now find the rotates and shifts and all that for RGB565.
+    // A packed 32-bit word then has 2 pixels:
+    //
+    //  3         2         1
+    // 10987654321098765432109876543210
+    // RRRRRGGGGGGBBBBBRRRRRGGGGGGBBBBB
+    //
+    // Each 16-bit pixel looks like:
+    // 1    1
+    // 5432109876543210
+    // RRRRRGGGGGGBBBBB; so to get R, G, and B into position (still 8-bit color values):
+    //         RRRRR---
+    //         GGGGGG--
+    //         BBBBB---
+    //
+    // we'll need L2/1/0 bit-width values (remember they're one less) of 4, 5, and 4,
+    // and right-rotation values of 8, 3, and (32 - 3).
+
+    hstx.expandShift = {
+        .rawShift = 0, .rawNShifts = 1, .encShift = 16, .encNShifts = 2};
+
+    hstx.expandTMDS = {
+        .l0Rot = 29, .l0NBits = 4, .l1Rot = 3, .l1NBits = 5, .l2Rot = 8, .l2NBits = 4};
+
+    hstx.csr = {
+        .enable = true, .expandEnable = true, .shift = 2, .nShifts = 5, .clkDiv = 5};
+
+    currentFrame = currentLine = 0;
+
+    auto const s00 = (kControl[0] << 20) | (kControl[0] << 10) | (kControl[0] << 0);
+    auto const s01 = (kControl[0] << 20) | (kControl[0] << 10) | (kControl[1] << 0);
+    auto const s10 = (kControl[0] << 20) | (kControl[0] << 10) | (kControl[2] << 0);
+    auto const s11 = (kControl[0] << 20) | (kControl[0] << 10) | (kControl[3] << 0);
+    auto const vp  = videoPreamble();
+    auto const vg  = videoGuard();
+
+    while (true) {
+        if (currentLine < 10) {
+            stuffU32(16u | (1u << 12));
+            stuffU32(s00);
+            stuffU32(96u | (1u << 12));
+            stuffU32(s01);
+            stuffU32((48u + 640u) | (1u << 12));
+            stuffU32(s00);
+        } else if (currentLine < 12) {
+            stuffU32(16u | (1u << 12));
+            stuffU32(s10);
+            stuffU32(96u | (1u << 12));
+            stuffU32(s11);
+            stuffU32((48u + 640u) | (1u << 12));
+            stuffU32(s10);
+        } else if (currentLine < 45) {
+            stuffU32(16u | (1u << 12));
+
+            stuffU32(s00);
+            stuffU32(96u | (1u << 12));
+            stuffU32(s01);
+            stuffU32((48u + 640u) | (1u << 12));
+            stuffU32(s00);
+        } else {
+            stuffU32(16u | (1u << 12));
+            stuffU32(s00);
+            stuffU32(96u | (1u << 12));
+            stuffU32(s01);
+            stuffU32(38u | (1u << 12));
+            stuffU32(s00);
+            stuffU32(8u | (1u << 12));
+            stuffU32(vp);
+            stuffU32(2u | (1u << 12));
+            stuffU32(vg);
+            stuffU32(160u | (3u << 12));
+            stuffU32(0b11111'000000'00000'11111'000000'00000);
+            stuffU32(160u | (3u << 12));
+            stuffU32(0b00000'111111'00000'00000'111111'00000);
+            stuffU32(160u | (3u << 12));
+            stuffU32(0b00000'000000'11111'00000'000000'11111);
+            stuffU32(160u | (3u << 12));
+            stuffU32(0b11111'111111'00000'11111'111111'00000);
+        }
+
+        ++currentLine;
+        if (currentLine == kVTotal) {
+            currentLine = 0;
+            ++currentFrame;
+        }
+
+        auto f = currentFrame % 60;
+        if (f < 30) {
+            sio.gpioOutSet = 1 << 25;
+        } else {
+            sio.gpioOutClr = 1 << 25;
+        }
+    }
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+    // ///////////////////////////////////////////////
+
+    sys::irqHandlers[kIRQDMA0] = txNextLine;
+
+    auto& chA = dma.channels[kDMAChannelA];
+    update(&chA.ctrl, [](Update<decltype(chA.ctrl)>& _) {
         _.zero();
+        _->chainTo  = kDMAChannelB;
         _->incrRead = true;
         _->treqSel  = kHSTXDREQ;
-        _->chainTo  = kDMAChannel; // itself
+        _->dataSize = DMA::DataSize::_32BIT;
+        _->enable   = true;
+    });
+    auto& chB = dma.channels[kDMAChannelB];
+    update(&chB.ctrl, [](Update<decltype(chB.ctrl)>& _) {
+        _.zero();
+        _->chainTo  = kDMAChannelA;
+        _->incrRead = true;
+        _->treqSel  = kHSTXDREQ;
         _->dataSize = DMA::DataSize::_32BIT;
         _->enable   = true;
     });
 
-    // Subsequent DMA transfers are triggered by `txNextLine` itself.
-    m33.triggerIRQ(kDMAIRQ);
+    auto& dmaA      = rp2350::dma.channels[kDMAChannelA];
+    dmaA.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
+    dmaA.readAddr   = uintptr_t(&bufA);
+    dmaA.transCount = {.count = kHTotal, .mode = DMA::Mode::NORMAL};
+    auto& dmaB      = rp2350::dma.channels[kDMAChannelB];
+    dmaA.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
+    dmaA.readAddr   = uintptr_t(&bufB);
+    dmaA.transCount = {.count = kHTotal, .mode = DMA::Mode::NORMAL};
+
+    rp2350::dma.irqs[0].rawStatus = (1u << kDMAChannelA) | (1u << kDMAChannelB);
+    rp2350::dma.irqs[0].enable    = (1u << kDMAChannelA) | (1u << kDMAChannelB);
+    m33.enableIRQ(kIRQDMA0);
+
+    bufA.init();
+    bufB.init();
+    currentFrame = 0;
+    currentLine  = 0;
+
+    rp2350::dma.multiChanTrigger.channels = (1u << kDMAChannelA);
 
     while (true) {
-        sys::Insns().wfi();
-        if (currentFrame % 60 < 30) {
+        sys::Insns().nop();
+        auto f = currentFrame % 60;
+        if (f < 30) {
             sio.gpioOutSet = 1 << 25;
         } else {
             sio.gpioOutClr = 1 << 25;
