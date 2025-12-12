@@ -13,16 +13,16 @@
 #include <rp2350/xoscpll.h>
 
 // For 640x480 at appx. 60fps
-static_assert(rp2350::sys::kSysHz == 125'000'000);
-constexpr static unsigned kHActive     = 640;
-constexpr static unsigned kVActive     = 480;
-constexpr static unsigned kHBlankFront = 16;
-constexpr static unsigned kHBlankSync  = 96;
-constexpr static unsigned kHBlankBack  = 48;
+static_assert(rp2350::sys::kSysHz == 150'000'000);
+constexpr static unsigned kHActive     = 864;
+constexpr static unsigned kVActive     = 486;
+constexpr static unsigned kHBlankFront = 36;
+constexpr static unsigned kHBlankSync  = 64;
+constexpr static unsigned kHBlankBack  = 36;
 constexpr static unsigned kHBlank      = kHBlankFront + kHBlankSync + kHBlankBack;
-constexpr static unsigned kVBlankFront = 10;
-constexpr static unsigned kVBlankSync  = 2;
-constexpr static unsigned kVBlankBack  = 33;
+constexpr static unsigned kVBlankFront = 4;
+constexpr static unsigned kVBlankSync  = 6;
+constexpr static unsigned kVBlankBack  = 4;
 constexpr static unsigned kVBlank      = kVBlankFront + kVBlankSync + kVBlankBack;
 constexpr static unsigned kHTotal      = kHActive + kHBlank;
 constexpr static unsigned kVTotal      = kVActive + kVBlank;
@@ -501,21 +501,21 @@ void stuffU32(auto t) {
     auto const vg  = videoGuard();
 
     while (true) {
-        if (currentLine < 10) {
+        if (currentLine < 4) {
             stuffU32(16u | (1u << 12));
             stuffU32(s00);
             stuffU32(96u | (1u << 12));
             stuffU32(s01);
             stuffU32((48u + 640u) | (1u << 12));
             stuffU32(s00);
-        } else if (currentLine < 12) {
+        } else if (currentLine < 10) {
             stuffU32(16u | (1u << 12));
             stuffU32(s10);
             stuffU32(96u | (1u << 12));
             stuffU32(s11);
             stuffU32((48u + 640u) | (1u << 12));
             stuffU32(s10);
-        } else if (currentLine < 45) {
+        } else if (currentLine < 14) {
             stuffU32(16u | (1u << 12));
 
             stuffU32(s00);
@@ -528,20 +528,18 @@ void stuffU32(auto t) {
             stuffU32(s00);
             stuffU32(96u | (1u << 12));
             stuffU32(s01);
-            stuffU32(38u | (1u << 12));
+            stuffU32(48u | (1u << 12));
             stuffU32(s00);
-            stuffU32(8u | (1u << 12));
-            stuffU32(vp);
-            stuffU32(2u | (1u << 12));
-            stuffU32(vg);
-            stuffU32(160u | (3u << 12));
-            stuffU32(0b11111'000000'00000'11111'000000'00000);
-            stuffU32(160u | (3u << 12));
-            stuffU32(0b00000'111111'00000'00000'111111'00000);
-            stuffU32(160u | (3u << 12));
-            stuffU32(0b00000'000000'11111'00000'000000'11111);
-            stuffU32(160u | (3u << 12));
-            stuffU32(0b11111'111111'00000'11111'111111'00000);
+            // stuffU32(8u | (1u << 12));
+            // stuffU32(vp);
+            // stuffU32(2u | (1u << 12));
+            // stuffU32(vg);
+            stuffU32(288 | (3u << 12));
+            stuffU32(0b11111'101000'00000'00000'000000'00000); // org
+            stuffU32(288 | (3u << 12));
+            stuffU32(0b00000'000000'00000'00100'001000'00100); // blk
+            stuffU32(288 | (3u << 12));
+            stuffU32(0b11111'000000'11111'00000'000000'00000); // purp
         }
 
         ++currentLine;

@@ -21,10 +21,10 @@ namespace sys {
 
 // Global config
 constexpr static uint64_t kXOSC  = 12'000'000;
-constexpr static uint64_t kSysHz = 125'000'000;
+constexpr static uint64_t kSysHz = 150'000'000;
 constexpr static uint64_t kFBDiv = 125;
-constexpr static uint64_t kDiv1  = 4;
-constexpr static uint64_t kDiv2  = 3;
+constexpr static uint64_t kDiv1  = 5;
+constexpr static uint64_t kDiv2  = 2;
 // Verify
 static_assert(16 <= kFBDiv && kFBDiv <= 320);
 static_assert(1 <= kDiv1 && kDiv1 <= 7);
@@ -115,9 +115,10 @@ struct DMA {
     };
 
     enum class Mode {
-        NORMAL       = 0,    // Decrement on each xfer until 0, then trigger CHAIN_TO
-        TRIGGER_SELF = 1,    // Like NORMAL but trigger self instead
-        ENDLESS      = 0x0f, // No decrement, no chain, no IRQ; transfer endlessly until ABORT
+        NORMAL       = 0, // Decrement on each xfer until 0, then trigger CHAIN_TO
+        TRIGGER_SELF = 1, // Like NORMAL but trigger self instead
+        ENDLESS =
+            0x0f, // No decrement, no chain, no IRQ; transfer endlessly until ABORT
     };
 
     struct TransCount {
