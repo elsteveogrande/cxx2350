@@ -12,6 +12,8 @@
 #include <rp2350/uart.h>
 #include <rp2350/xoscpll.h>
 
+#include "HDMI.Image.h"
+
 // For 640x480 at appx. 60fps
 static_assert(rp2350::sys::kSysHz == 150'000'000);
 constexpr static unsigned kHActive     = 864;
