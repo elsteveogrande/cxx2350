@@ -7,15 +7,15 @@ template <uint16_t kWidth, uint16_t kHeight> struct HSTXPixels {
     constexpr uint16_t height() const { return kHeight; }
 
     struct Pixels {
-        unsigned count : 12;    // 11..0
-        unsigned cmd   : 4 {2}; // 15..12
+        unsigned count : 12;       // 11..0
+        unsigned cmd   : 4 {0x02}; // 15..12
         unsigned       : 16;
     };
     static_assert(sizeof(Pixels) == sizeof(uint32_t));
 
     struct Repeat {
-        unsigned count : 12;    // 11..0
-        unsigned cmd   : 4 {2}; // 15..12
+        unsigned count : 12;       // 11..0
+        unsigned cmd   : 4 {0x03}; // 15..12
         unsigned       : 16;
     };
     static_assert(sizeof(Repeat) == sizeof(uint32_t));
@@ -27,7 +27,13 @@ template <uint16_t kWidth, uint16_t kHeight> struct HSTXPixels {
         unsigned cmd   : 4 {0x0f}; // 15..12
         unsigned       : 16;
     };
+    static_assert(sizeof(Nop) == sizeof(uint32_t));
 
-    size_t size;
-    uint32_t words[1]; // actual size is `size`; is always > 0
+    size_t const size;
+    uint32_t const* const words;
+
+    template <size_t kSize>
+    constexpr static HSTXPixels<kWidth, kHeight> make(uint32_t const* words) {
+        return {kSize, words};
+    }
 };
