@@ -53,10 +53,12 @@ dump: build/examples/$(EXAMPLE).elf
 
 # Examples
 
-build/examples/%.elf: build/examples/%.cc.o layout.ld build/librp2350.a link_flags.txt
-	$(CXX) @link_flags.txt -o $@ $<
+build/examples/HDMI.elf: build/examples/HDMI.cc.o layout.ld build/librp2350.a examples/link_flags.txt examples/HDMI.Image.h
+	mkdir -p build build/examples
+	$(CXX) @examples/link_flags.txt -o $@ $<
 
-build/examples/%.cc.o: examples/%.cc include/**/* layout.ld compile_flags.txt
+build/examples/%.cc.o: examples/%.cc include/**/* compile_flags.txt
+	mkdir -p build build/examples
 	mkdir -p build build/examples
 	$(CXX) @compile_flags.txt -I.. -o $@ -c $<
 

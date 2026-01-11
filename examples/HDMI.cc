@@ -384,17 +384,9 @@ void stuffU32(auto t) {
 
     resets.unreset(Resets::Bit::DMA, true);
 
-    resets.reset(Resets::Bit::HSTX);
     sys::initHSTXClock();
 
-    initOutput<12>(GPIO::FuncSel<12>::HSTX);
-    initOutput<13>(GPIO::FuncSel<13>::HSTX);
-    initOutput<14>(GPIO::FuncSel<14>::HSTX);
-    initOutput<15>(GPIO::FuncSel<15>::HSTX);
-    initOutput<16>(GPIO::FuncSel<16>::HSTX);
-    initOutput<17>(GPIO::FuncSel<17>::HSTX);
-    initOutput<18>(GPIO::FuncSel<18>::HSTX);
-    initOutput<19>(GPIO::FuncSel<19>::HSTX);
+    resets.reset(Resets::Bit::HSTX);
     sio.gpioOutClr = 0x000ff000;
     for (unsigned i = 0; i < 10000000; i++) { sys::Insns().nop(); }
     resets.unreset(Resets::Bit::HSTX, true);
