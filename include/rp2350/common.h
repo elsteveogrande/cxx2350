@@ -149,21 +149,37 @@ struct DMA {
 
     // p.1132
     struct IRQ {
-        uint32_t rawStatus; // 15..0 only
-        uint32_t enable;    // 15..0 only
-        uint32_t force;     // 15..0 only
-        uint32_t status;    // 15..0 only
+        uint32_t enable; // 15..0 only
+        uint32_t force;  // 15..0 only
+        uint32_t status; // 15..0 only
     };
-    static_assert(sizeof(IRQ) == 16);
+    static_assert(sizeof(IRQ) == 12);
 
     struct Trigger {
         uint32_t channels; // 15..0 only
     };
 
-    Channel channels[15];     // 0x50000000, 0x50000040, ...
-    IRQ irqs[4];              // 0x50000400, 0x50000410, ...
+    Channel channels[16]; // 0x50000000, 0x50000040, ...
+    uint32_t rawStatus;   // 0x50000400
+    IRQ irq0;             // 0x50000404, 408, 40c, ...
+    uint32_t _z50000410;
+    IRQ irq1; // 0x50000414, 418, 41c, ...
+    uint32_t _z50000420;
+    IRQ irq2; // 0x50000424, 428, 42c, ...
+    uint32_t _z50000430;
+    IRQ irq3;                 // 0x50000434, 438, 43c, ...
     uint32_t timers[4];       // 0x50000440, 0x50000444, ...
     Trigger multiChanTrigger; // 0x50000450
+
+    IRQ& irqRegs(unsigned i) {
+        switch (i) {
+        case 0: return irq0;
+        case 1: return irq1;
+        case 2: return irq2;
+        case 3: return irq3;
+        default: __builtin_unreachable(); // TODO: panic
+        }
+    }
 
     constexpr static unsigned kDMAIRQs[4] {10, 11, 12, 13}; // p.84
 };
