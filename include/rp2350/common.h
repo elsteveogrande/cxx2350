@@ -35,16 +35,37 @@ static_assert(kXOSC * kFBDiv <= 1600'000'000);
 static_assert(kXOSC * kFBDiv / (kDiv1 * kDiv2) == kSysHz);
 
 // Image definition [IMAGE_DEF]: section 5.9, "Metadata Block Details".
-struct [[gnu::packed]] ImageDef2350ARM {
-    uint32_t start     = 0xffffded3; // Start magic
-    uint8_t type       = 0x42;       //
-    uint8_t size       = 0x01;       //
-    uint16_t flags     = 0x1021;     // Item 0: CHIP=2350, CPU=ARM, EXE=1, S=2
-    uint8_t sizeType   = 0xff;       // BLOCK_ITEM_LAST has a 2-byte size
-    uint16_t totalSize = 1;          // Total of preceding items' sizes (in words)
-    uint8_t _pad       = 0;          //
-    uint32_t link      = 0;          // No link since this is only 1 block
-    uint32_t end       = 0xab123579; // End magic
+struct ImageDef {
+    struct [[gnu::packed]] Start {
+        uint32_t const magic {0xffffded3};
+    };
+
+    template <uint16_t kFlags> struct [[gnu::packed]] ImageType {
+        uint8_t const type   = 0x42; // PICOBIN_BLOCK_ITEM_1BS_IMAGE_TYPE
+        uint8_t const size   = 0x01; //
+        uint16_t const flags = kFlags;
+    };
+
+    // CHIP=2350, CPU=ARM, EXE=1, S=2
+    struct [[gnu::packed]] ImageTypeARM : ImageType<0x1021> {};
+
+    struct [[gnu::packed]] ItemListEnd {
+        uint8_t sizeType   = 0xff; // BLOCK_ITEM_LAST has a 2-byte size
+        uint16_t totalSize = 1;    // Total of preceding items' sizes (in words)
+        uint8_t _pad       = 0;    //
+    };
+
+    struct [[gnu::packed]] End {
+        uint32_t end = 0xab123579; // End magic
+    };
+};
+
+struct [[gnu::packed]] ImageDef2350ARM : ImageDef {
+    Start _start {};
+    ImageTypeARM _img0 {};
+    ItemListEnd _listEnd {};
+    uint32_t link = 0; // No link since this is only 1 block
+    End _end;
 };
 
 } // namespace sys
@@ -117,8 +138,7 @@ struct DMA {
     enum class Mode {
         NORMAL       = 0, // Decrement on each xfer until 0, then trigger CHAIN_TO
         TRIGGER_SELF = 1, // Like NORMAL but trigger self instead
-        ENDLESS =
-            0x0f, // No decrement, no chain, no IRQ; transfer endlessly until ABORT
+        ENDLESS = 0x0f,   // No decrement, no chain, no IRQ; xfer endlessly until ABORT
     };
 
     struct TransCount {
@@ -133,16 +153,11 @@ struct DMA {
         TransCount transCount;
         Control ctrlTrig;
         Control ctrl;
-        unsigned z014;
-        unsigned z018;
+        unsigned z014[2];
         TransCount transCountTrig;
-        unsigned z020;
-        unsigned z024;
-        unsigned z028;
+        unsigned z020[3];
         uintptr_t writeAddrTrig;
-        unsigned z030;
-        unsigned z034;
-        unsigned z038;
+        unsigned z030[3];
         uintptr_t readAddrTrig;
     };
     static_assert(sizeof(Channel) == 64);
@@ -159,14 +174,14 @@ struct DMA {
         uint32_t channels; // 15..0 only
     };
 
-    Channel channels[16]; // 0x50000000, 0x50000040, ...
-    uint32_t rawStatus;   // 0x50000400
-    IRQ irq0;             // 0x50000404, 408, 40c, ...
-    uint32_t _z50000410;
-    IRQ irq1; // 0x50000414, 418, 41c, ...
-    uint32_t _z50000420;
-    IRQ irq2; // 0x50000424, 428, 42c, ...
-    uint32_t _z50000430;
+    Channel channels[16];     // 0x50000000, 0x50000040, ...
+    uint32_t rawStatus;       // 0x50000400
+    IRQ irq0;                 // 0x50000404, 408, 40c, ...
+    uint32_t _z50000410;      //
+    IRQ irq1;                 // 0x50000414, 418, 41c, ...
+    uint32_t _z50000420;      //
+    IRQ irq2;                 // 0x50000424, 428, 42c, ...
+    uint32_t _z50000430;      //
     IRQ irq3;                 // 0x50000434, 438, 43c, ...
     uint32_t timers[4];       // 0x50000440, 0x50000444, ...
     Trigger multiChanTrigger; // 0x50000450

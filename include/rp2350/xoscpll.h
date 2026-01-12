@@ -18,7 +18,7 @@ struct XOSC {
         enum class Enable { kDisable = 0xd1e, kEnable = 0xfab };
 
         FreqRange freqRange : 12; // 11..0
-        Enable    enable    : 12; // 23..12
+        Enable enable       : 12; // 23..12
         unsigned            : 8;
     };
 
@@ -48,10 +48,10 @@ struct XOSC {
         unsigned       : 11;
     };
 
-    Control  control;
-    Status   status;
-    Dormant  dormant;
-    Startup  startup;
+    Control control;
+    Status status;
+    Dormant dormant;
+    Startup startup;
     uint32_t count;
 
     void init() {
@@ -96,13 +96,13 @@ struct PLL {
     };
 
     ControlStat cs;
-    PowerDown   powerDown;
-    uint32_t    fbDiv;
-    Primary     prim;
-    uint32_t    intr; // TODO
-    uint32_t    inte; // TODO
-    uint32_t    intf; // TODO
-    uint32_t    ints; // TODO
+    PowerDown powerDown;
+    uint32_t fbDiv;
+    Primary prim;
+    uint32_t intr; // TODO
+    uint32_t inte; // TODO
+    uint32_t intf; // TODO
+    uint32_t ints; // TODO
 
     // Section 8.6, PLL, p583 describes the `pll_init` process
     void init() {
@@ -124,7 +124,7 @@ inline auto& sysPLL = *(PLL*)(0x40050000);
 
 inline void delay1() {
     xosc.count = sys::kXOSC / 1000;
-    while (xosc.count) { sys::Insns().nop(); }
+    while (xosc.count) { rp2350::sys::nop(); }
 }
 
 inline void delay(unsigned ms) {

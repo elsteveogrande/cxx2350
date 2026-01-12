@@ -62,7 +62,7 @@ struct PanicTX {
 
     void delay() {
         xosc.count = kClocks;
-        while (xosc.count) { Insns().nop(); }
+        while (xosc.count) { rp2350::sys::nop(); }
     }
 
     void signal(bool x) {
@@ -134,12 +134,12 @@ inline void panic(PanicContext const& cx) {
         for (uint32_t i = 0; i < 16; i++) { tx << '\n'; }
 
         tx << RED << "=== panic" << NORMAL << "\n";
-        tx << "  r0:" << cx.r0 << "  r1:" << cx.r1 << "  r2:" << cx.r2 << "  r3:" << cx.r3
-           << "  r4:" << cx.r4 << "  r5:" << cx.r5 << '\n'
-           << "  r6:" << cx.r6 << "  r7:" << cx.r7 << "  r8:" << cx.r8 << "  r9:" << cx.r9
-           << " r10:" << cx.r10 << " r11:" << cx.r11 << '\n'
-           << " r12:" << cx.r12 << "  sp:" << cx.sp << "  lr:" << cx.lr << "  pc:" << cx.pc
-           << " psr:" << cx.psr << " exc:" << cx.exc << '\n'
+        tx << "  r0:" << cx.r0 << "  r1:" << cx.r1 << "  r2:" << cx.r2
+           << "  r3:" << cx.r3 << "  r4:" << cx.r4 << "  r5:" << cx.r5 << '\n'
+           << "  r6:" << cx.r6 << "  r7:" << cx.r7 << "  r8:" << cx.r8
+           << "  r9:" << cx.r9 << " r10:" << cx.r10 << " r11:" << cx.r11 << '\n'
+           << " r12:" << cx.r12 << "  sp:" << cx.sp << "  lr:" << cx.lr
+           << "  pc:" << cx.pc << " psr:" << cx.psr << " exc:" << cx.exc << '\n'
            << " typ:" << cx.type << '\n';
 
         tx << "\n" << YEL << "M33 SCB:" << NORMAL << "\n";
@@ -216,7 +216,7 @@ inline void panic(PanicContext const& cx) {
         unsigned i = 10000;
         while (i--) {
             xosc.count = 12000;
-            while (xosc.count) { Insns().nop(); }
+            while (xosc.count) { rp2350::sys::nop(); }
         }
     };
 }

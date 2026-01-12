@@ -12,13 +12,14 @@
 
 namespace rp2350::sys {
 
-// Need to define a couple of structures in our main file so that they are baked into the ELF.
-// These two are given `section` attributes so that they can be placed at specific flash
-// addresses (see `layout.ld`).
+// Need to define a couple of structures in our main file so that they are baked into
+// the ELF. These two are given `section` attributes so that they can be placed at
+// specific flash addresses (see `layout.ld`).
 
 // Interrupt vectors are needed for the thing to start; this will live at flash address
 // `0x10000000`. It can live in a different address but the default is fine.
-[[gnu::used]] [[gnu::retain]] [[gnu::section(".vec_table")]] ARMVectors const gARMVectors;
+[[gnu::used]] [[gnu::retain]] [[gnu::section(
+    ".vec_table")]] ARMVectors const gARMVectors;
 
 // Image definition is required for the RP2 bootloader; this will live at flash address
 // `0x10000100`.
@@ -67,7 +68,7 @@ using namespace rp2350;
         // delay: 250 * (12k / 12MHz) -> 250ms
         for (unsigned i = 0; i < 250; i++) {
             xosc.count = 12'000;
-            while (xosc.count) { sys::Insns().nop(); }
+            while (xosc.count) { rp2350::sys::nop(); }
         }
         // Toggle the little LED
         sio.gpioOutXor = (1 << 25);
