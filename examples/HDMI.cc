@@ -58,7 +58,11 @@ struct [[gnu::packed]] TMDS {
     unsigned ch2 : 10 {};
     unsigned     : 2;
 
-    uint32_t u32() const { return *(uint32_t*)(this); }
+    constexpr uint32_t u32() const {
+        // Avoid reinterpret-cast so we can make this constexpr.
+        // return *(uint32_t const*)(this);
+        return (unsigned(ch2) << 20) | (unsigned(ch1) << 10) | (unsigned(ch0) << 0);
+    }
 
     // Encode 6 bits (2 bits across 3 channels)
     constexpr static TMDS control(uint8_t ch2, uint8_t ch1, uint8_t ch0) {
@@ -112,130 +116,8 @@ struct [[gnu::packed]] Pixel {
     unsigned b : 5 {};
     unsigned g : 6 {};
     unsigned r : 5 {};
-    Pixel() = default;
-    Pixel(uint32_t x) { u32() = x; }
-    uint32_t& u32() { return *(uint32_t*)this; }
 };
 static_assert(sizeof(Pixel) == 2);
-
-struct Buffer {
-    constexpr static unsigned kMaxWords = 1022;
-    unsigned size;
-    unsigned foo;
-    uint32_t words[kMaxWords];
-
-    constexpr static unsigned kRaw      = 0x00;
-    constexpr static unsigned kRawRep   = 0x01;
-    constexpr static unsigned kPixel    = 0x02;
-    constexpr static unsigned kPixelRep = 0x03;
-    constexpr static unsigned kNOP      = 0x0f;
-
-    void push(uint32_t word) {
-        if (size < kHTotal) { words[size++] = word; }
-    }
-
-    uint32_t cmd(unsigned cmd, unsigned size) {
-        return (uint32_t(cmd & 0x0f) << 12) | (uint32_t(size) & 0xfff);
-    }
-
-    void clear() {
-        size = 0;
-        for (unsigned i = 0; i < 16; i++) { push(cmd(kNOP, 0)); }
-    }
-
-    void push(TMDS x, unsigned rep = 1) {
-        push(cmd(kRawRep, rep));
-        push(x.u32());
-    }
-
-    void push(Pixel _px, unsigned rep = 1) {
-        auto px = _px.u32();
-        push(cmd(kPixelRep, rep));
-        push((px << 16) | px);
-    }
-
-    void pushHBlank(bool vsync) {
-        push(TMDS::sync(vsync, false), kHBlankFront);
-        push(TMDS::sync(vsync, true), kHBlankSync);
-        push(TMDS::sync(vsync, false), kHBlankBack);
-    }
-
-    // Pushes an entire vblank line.
-    // `this` should be empty.
-    void pushVBlank(bool vsync) {
-        pushHBlank(vsync);
-        push(TMDS::sync(vsync, false), kHActive);
-    }
-
-    void blank() {
-        clear();
-        push(TMDS::idle(), 1000);
-        while (size < 64) { push(cmd(kNOP, 0)); }
-    }
-
-    // TMDS pushDataPreamble(bool hsync = false, bool vsync = false) {
-    //     // Table 5-2; watch out for the CTL bit order.  CTL3:0 = 0101
-    //     return TMDS::control(0b01, 0b01, vsync, hsync);
-    // }
-
-    // TMDS pushVideoPreamble(bool hsync = false, bool vsync = false) {
-    //     // Table 5-2; watch out for the CTL bit order.  CTL3:0 = 0001
-    //     return TMDS::control(0b00, 0b01, vsync, hsync);
-    // }
-
-    // TMDS pushDataGuard(bool hsync = false, bool vsync = false) {
-    //     auto v = vsync ? 0b0010 : 0;
-    //     auto h = hsync ? 0b0001 : 0;
-    //     return {.ch0 = TMDS::kTERC[0b1100 | v | h].code,
-    //             .ch1 = 0b0100110011,
-    //             .ch2 = 0b0100110011};
-    // }
-
-    // TMDS pushVideoGuard() {
-    //     return {.ch0 = 0b1011001100, .ch1 = 0b0100110011, .ch2 = 0b1011001100};
-    // }
-};
-static_assert(sizeof(Buffer) <= 4096);
-
-// We'll claim SRAM8 and SRAM9 for two separately-bussed buffers (see Section 2.2.3
-// "SRAM"). We purposely avoid accessing (for read or write) the region of memory
-// currently being used by DMA so as to avoid stalls or jitter.
-auto& bufA = *(Buffer*)(0x20080000); // Even lines
-auto& bufB = *(Buffer*)(0x20081000); // Odd lines
-
-unsigned currentLine  = 0;
-unsigned currentFrame = 0;
-
-// Return a reference to a TMDS buffer (one of `bufA` or `bufB`) depending on line
-constexpr auto& lineBuffer(unsigned oline) { return (oline & 1) ? bufB : bufA; }
-
-// Write line (of pixels, controls, sync) into `buf`.
-// `displayLine` is in range 0 to 485.
-void prepVideoLine(Buffer& buf, unsigned displayLine) {
-    buf.pushHBlank(false);
-    buf.push(Pixel(0x00f), kHActive);
-    (void)displayLine;
-}
-
-void prepLine() {
-    constexpr static unsigned kVFrontPorchLine = 0;
-    constexpr static unsigned kVSyncLine       = kVFrontPorchLine + kVBlankFront;
-    constexpr static unsigned kVBackPorchLine  = kVSyncLine + kVBlankSync;
-    constexpr static unsigned kVActiveLine     = kVBackPorchLine + kVBlankBack;
-
-    auto& buf = lineBuffer(currentLine);
-    buf.clear();
-
-    if (currentLine < kVSyncLine) {
-        buf.pushVBlank(false);
-    } else if (currentLine < kVBackPorchLine) {
-        buf.pushVBlank(true);
-    } else if (currentLine < kVActiveLine) {
-        buf.pushVBlank(false);
-    } else {
-        prepVideoLine(buf, currentLine - kVActiveLine);
-    }
-}
 
 namespace rp2350::sys {
 
@@ -295,53 +177,130 @@ using namespace rp2350;
 
 constexpr static unsigned kHSTXDREQ    = 52; // p.1102
 constexpr static unsigned kDMAChannelA = 0;
+constexpr static unsigned kDMAChannelB = 1;
 constexpr static unsigned kIRQDMA0     = DMA::kDMAIRQs[0];
 
-void tx() {
-    using rp2350::DMA;
+struct [[gnu::packed]] Buffer {
+    uint32_t const* words; // array of words for FIFO
+    uint16_t count;        // word count
+};
 
-    auto& buf = lineBuffer(currentLine);
-    auto& ch  = rp2350::dma.channels[kDMAChannelA];
+struct [[gnu::aligned(4)]] VBlankLine {
+    uint32_t const cmd0_  = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
+    TMDS const frontPorch = TMDS::sync(0, 0);
+    uint32_t const cmd1_  = (1u << 12) | kHBlankSync;
+    TMDS const hsync      = TMDS::sync(0, 1);
+    uint32_t const cmd2_  = (1u << 12) | kHBlankBack + kHActive;
+    TMDS const backPorch  = TMDS::sync(0, 0);
 
-    ch.readAddr             = uintptr_t(&buf.words);
-    ch.transCountTrig.count = buf.size;
+    constexpr VBlankLine() = default;
 
-    ++currentLine;
-    if (currentLine == kVTotal) {
-        currentLine = 0;
-        ++currentFrame;
+    Buffer buf() const {
+        return {.words = (uint32_t const*)(this),
+                .count = sizeof(decltype(*this)) >> 2};
+    }
+};
+
+struct [[gnu::aligned(4)]] VSyncLine {
+    uint32_t const cmd0_  = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
+    TMDS const frontPorch = TMDS::sync(1, 0);
+    uint32_t const cmd1_  = (1u << 12) | kHBlankSync;
+    TMDS const hsync      = TMDS::sync(1, 1);
+    uint32_t const cmd2_  = (1u << 12) | kHBlankBack + kHActive;
+    TMDS const backPorch  = TMDS::sync(1, 0);
+
+    constexpr VSyncLine() = default;
+
+    Buffer buf() const {
+        return {.words = (uint32_t const*)(this),
+                .count = sizeof(decltype(*this)) >> 2};
+    }
+};
+
+struct [[gnu::packed]] [[gnu::aligned(4)]] Pixels {
+    constexpr static Pixel const kDefault {.b = 20, .g = 1, .r = 31};
+
+    uint32_t const cmd0_  = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
+    TMDS const frontPorch = TMDS::sync(0, 0);          //
+    uint32_t const cmd1_  = (1u << 12) | kHBlankSync;  //
+    TMDS const hsync      = TMDS::sync(0, 1);          //
+
+    uint32_t const cmd2_ = (1u << 12) | kHBlankBack;
+    TMDS const backPorch = TMDS::sync(0, 0);
+    uint32_t const cmd_  = (2u << 12) | kHActive; // HSTX_CMD_TMDS
+    Pixel pixels[kHActive];                       // packed RGB565 pixels follow
+
+    void clear() {
+        for (auto i = 0u; i < kHActive; i++) { pixels[i] = kDefault; }
     }
 
-    // prepLine();
+    Buffer buf() const {
+        return {.words = (uint32_t const*)(this),
+                .count = sizeof(decltype(*this)) >> 2};
+    }
+};
 
-    rp2350::dma.irqRegs(0).status = (1u << kDMAChannelA);
+auto& line0 = *(Pixels*)(0x20080000); // Even lines' pixels
+auto& line1 = *(Pixels*)(0x20081000); // Odd lines' pixels
+
+unsigned nextLine  = 0;
+unsigned thisFrame = 0;
+
+void issueResets() {
+    // Turn reset on for everything except QSPI (since we're running on flash).
+    // clang-format off
+    constexpr static uint32_t kMask = 0
+        | unsigned(Resets::Bit::ADC      )
+        | unsigned(Resets::Bit::BUSCTRL  )
+        | unsigned(Resets::Bit::DMA      )
+        | unsigned(Resets::Bit::HSTX     )
+        | unsigned(Resets::Bit::I2C0     )
+        | unsigned(Resets::Bit::I2C1     )
+        | unsigned(Resets::Bit::IOBANK0  )
+        | unsigned(Resets::Bit::PADSBANK0)
+        | unsigned(Resets::Bit::PIO0      )
+        | unsigned(Resets::Bit::PIO1      )
+        | unsigned(Resets::Bit::PIO2      )
+        | unsigned(Resets::Bit::PWM       )
+        | unsigned(Resets::Bit::SHA256    )
+        | unsigned(Resets::Bit::SPI0      )
+        | unsigned(Resets::Bit::SPI1      )
+        | unsigned(Resets::Bit::TIMER0    )
+        | unsigned(Resets::Bit::TIMER1    )
+        | unsigned(Resets::Bit::TRNG      )
+        | unsigned(Resets::Bit::UART0     )
+        | unsigned(Resets::Bit::UART1     )
+        | unsigned(Resets::Bit::USBCTRL   )
+        // We won't reset these, they are needed for even minimal operation.
+        // If the application wants to mess with these it still can, but we
+        // won't automatically reset these.
+        // | unsigned(Resets::Bit::IOQSPI    )
+        // | unsigned(Resets::Bit::PADSQSPI  )
+        // | unsigned(Resets::Bit::PLLSYS    )
+        // | unsigned(Resets::Bit::PLLUSB    )
+        // | unsigned(Resets::Bit::JTAG      )
+        // | unsigned(Resets::Bit::SYSCFG    )
+        // | unsigned(Resets::Bit::SYSINFO   )
+        // | unsigned(Resets::Bit::TBMAN     )
+    ;
+    // clang-format on
+
+    resets.resets |= kMask;
+    // Some components seem to need a little bit of time before un-reset.
+    for (unsigned i = 0; i < 1000000; i++) { sys::Insns().nop(); }
 }
 
-// // The actual application startup code, called by reset handler
-[[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
-    sys::initInterrupts();
-    sys::initCPUBasic();
-    sys::initSystemClock();
-    sys::initSystemTicks();
-    sys::initRefClock();
-    sys::initPeriphClock();
-
+void initGPIO() {
     resets.unreset(Resets::Bit::PADSBANK0, true);
     resets.unreset(Resets::Bit::IOBANK0, true);
-
     initOutput<25>(); // config LED
+}
 
-    resets.reset(Resets::Bit::DMA);
-    for (unsigned i = 0; i < 1000000; i++) { sys::Insns().nop(); }
-    resets.unreset(Resets::Bit::DMA, true);
+void initDMA() { resets.unreset(Resets::Bit::DMA, true); }
 
+void initHSTX() {
     sys::initHSTXClock();
-
-    resets.reset(Resets::Bit::HSTX);
-    sio.gpioOutClr = 0x000ff000;
-    for (unsigned i = 0; i < 1000000; i++) { sys::Insns().nop(); }
     resets.unreset(Resets::Bit::HSTX, true);
-
     initOutput<12>(GPIO::FuncSel<12>::HSTX);
     initOutput<13>(GPIO::FuncSel<13>::HSTX);
     initOutput<14>(GPIO::FuncSel<14>::HSTX);
@@ -350,7 +309,9 @@ void tx() {
     initOutput<17>(GPIO::FuncSel<17>::HSTX);
     initOutput<18>(GPIO::FuncSel<18>::HSTX);
     initOutput<19>(GPIO::FuncSel<19>::HSTX);
+}
 
+void configHSTX() {
     // See: p.1206: "As a final, concrete example, take TMDS (used in DVI): ..."
     // and: p.1207: "For double-data-rate data, with active rising and active
     // falling
@@ -383,7 +344,7 @@ void tx() {
     // 1    1
     // 5432109876543210
     // RRRRRGGGGGGBBBBB; so to get R, G, and B into position (still 8-bit color
-    // values):
+    // vals):
     //         RRRRR--- (shift R right by 8)
     //         GGGGGG-- (shift G right by 3)
     //         BBBBB--- (shift B left by 3)
@@ -399,21 +360,118 @@ void tx() {
 
     hstx.csr = {
         .enable = true, .expandEnable = true, .shift = 2, .nShifts = 5, .clkDiv = 5};
+}
 
-    sys::irqHandlers[kIRQDMA0] = tx;
+namespace rp2350::sys {
+struct BusControl {
+    struct Priority : R32 {
+        unsigned proc0    : 1; // 0
+        unsigned          : 3;
+        unsigned proc1    : 1; // 4
+        unsigned          : 3;
+        unsigned dmaRead  : 1; // 8
+        unsigned          : 3;
+        unsigned dmaWrite : 1; // 12
+        unsigned          : 19;
+    };
 
-    lineBuffer(0).blank();
-    lineBuffer(1).blank();
+    Priority priority; // 0x00
+};
+inline auto& busControl = *(BusControl*)(0x40068000);
+} // namespace rp2350::sys
 
-    currentFrame = currentLine = 0;
+void initBusControl() { resets.unreset(Resets::Bit::BUSCTRL, true); }
 
-    auto& irq  = rp2350::dma.irqRegs(0);
-    irq.status = (1u << kDMAChannelA); // clear flag
-    irq.enable = (1u << kDMAChannelA);
-    m33.enableIRQ(kIRQDMA0);
+void configBusControl() { rp2350::sys::busControl.priority.dmaRead = 1; }
+
+constexpr VBlankLine const vblankLine;
+constexpr VSyncLine const vsyncLine;
+
+void prepLine(unsigned line) { (void)line; }
+
+void prepFrame(unsigned frame) { (void)frame; }
+
+void tx() {
+    auto& irq = rp2350::dma.irqRegs(0);
+
+    // Detect which DMA just completed
+    unsigned dmaChannel;
+    uint32_t irqStatus = irq.status;
+    if (irqStatus & (1u << kDMAChannelA)) {
+        dmaChannel = kDMAChannelA;
+    } else if (irqStatus & (1u << kDMAChannelB)) {
+        dmaChannel = kDMAChannelB;
+    } else {
+        return;
+    }
+
+    // nextLine is the next one to "draw" out; prepare it.
+    // Note that (nextLine - 1) is already being sent on the other channel.
+    Buffer buf;
+    if (nextLine < kVActive) {
+        prepLine(nextLine);
+        buf = ((nextLine & 1) ? line1 : line0).buf();
+    } else if (nextLine < kVActive + kVBlankFront) {
+        buf = vblankLine.buf();
+    } else if (nextLine < kVActive + kVBlankFront + kVBlankSync) {
+        buf = vsyncLine.buf();
+    } else {
+        buf = vblankLine.buf();
+    }
+    auto& ch      = rp2350::dma.channels[dmaChannel];
+    ch.readAddr   = uintptr_t(buf.words);
+    ch.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
+
+    // nextLine is now prepared and ready to be sent upon next invocation.
+
+    ++nextLine;
+    if (nextLine >= kVTotal) {
+        nextLine = 0;
+        ++thisFrame;
+        prepFrame(thisFrame);
+    }
+
+    irq.status = (1u << dmaChannel); // clear flag
+}
+
+// // The actual application startup code, called by reset handler
+[[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
+    issueResets();
+    sys::initInterrupts();
+    sys::initCPUBasic();
+    sys::initSystemClock();
+    sys::initSystemTicks();
+    sys::initRefClock();
+    sys::initPeriphClock();
+    initBusControl();
+    initGPIO();
+    initDMA();
+    initHSTX();
+    configHSTX();
+    configBusControl();
+
+    line0.clear();
+    line1.clear();
+
+    // Set up the two DMA channels; initially point them at dummy buffers (blank
+    // lines).
+    auto buf = vblankLine.buf();
 
     auto& chA = dma.channels[kDMAChannelA];
     update(&chA.ctrl, [](auto& _) {
+        _.zero();
+        _->chainTo  = kDMAChannelB;
+        _->incrRead = true;
+        _->treqSel  = kHSTXDREQ;
+        _->dataSize = DMA::DataSize::_32BIT;
+        _->enable   = true;
+    });
+    chA.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
+    chA.readAddr   = uintptr_t(buf.words);
+    chA.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
+
+    auto& chB = dma.channels[kDMAChannelB];
+    update(&chB.ctrl, [](auto& _) {
         _.zero();
         _->chainTo  = kDMAChannelA;
         _->incrRead = true;
@@ -421,14 +479,25 @@ void tx() {
         _->dataSize = DMA::DataSize::_32BIT;
         _->enable   = true;
     });
-    chA.writeAddr       = uintptr_t(&hstx.fifo().fifoWrite);
-    chA.readAddr        = uintptr_t(&bufA.words);
-    chA.transCount.mode = DMA::Mode::NORMAL;
+    chB.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
+    chB.readAddr   = uintptr_t(buf.words);
+    chB.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
 
-    tx();
+    auto& irq  = rp2350::dma.irqRegs(0);
+    irq.status = (1u << kDMAChannelA) | (1u << kDMAChannelB); // clear flags
+    irq.enable = (1u << kDMAChannelA) | (1u << kDMAChannelB);
+
+    sys::irqHandlers[kIRQDMA0] = tx;
+    m33.clrPendIRQ(kIRQDMA0);
+    m33.enableIRQ(kIRQDMA0);
+
+    thisFrame = ~0u;         // will increment to first frame, frame 0
+    nextLine  = kVTotal - 1; // will wrap back to 0, bumping frame
+
+    rp2350::dma.multiChanTrigger.channels = 1u << kDMAChannelA;
 
     while (true) {
-        auto f = currentFrame % 60;
+        auto f = thisFrame % 60;
         if (f < 30) {
             sio.gpioOutSet = 1 << 25;
         } else {

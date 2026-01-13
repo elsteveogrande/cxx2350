@@ -3,6 +3,7 @@
 #include <cxx20/cxxabi.h>
 #include <rp2350/common.h>
 #include <rp2350/insns.h>
+#include <rp2350/m33.h>
 
 namespace rp2350::sys {
 
@@ -61,6 +62,7 @@ inline void irq() {
     if (intn >= 16 && intn < 16 + kIRQHandlers) {
         auto irq = intn - 16;
         if (irqHandlers[irq]) { irqHandlers[irq](); }
+        m33.clrPendIRQ(irq);
     }
 }
 
