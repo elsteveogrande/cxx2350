@@ -238,7 +238,7 @@ struct [[gnu::aligned(4)]] VSyncLine {
 };
 
 struct [[gnu::packed]] [[gnu::aligned(4)]] Pixels {
-    constexpr static Pixel const kDefault {.b = 10, .g = 1, .r = 15};
+    constexpr static Pixel const kDefault {.b = 2, .g = 2, .r = 2};
 
     uint32_t const cmd0_  = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
     TMDS const frontPorch = TMDS::sync(0, 0);
@@ -249,8 +249,8 @@ struct [[gnu::packed]] [[gnu::aligned(4)]] Pixels {
     uint32_t const cmd_   = (2u << 12) | kHActive; // HSTX_CMD_TMDS
     Pixel pixels[kHActive];                        // packed RGB444 pixels follow
 
-    void clear() {
-        for (auto i = 0u; i < kHActive; i++) { pixels[i] = kDefault; }
+    void clear(Pixel px = kDefault) {
+        for (auto i = 0u; i < kHActive; i++) { pixels[i] = px; }
     }
 
     Buffer buf() const {
@@ -391,7 +391,21 @@ void configBusControl() { rp2350::sys::busControl.priority.dmaRead = 1; }
 constexpr VBlankLine const vblankLine {};
 constexpr VSyncLine const vsyncLine {};
 
-void prepLine(unsigned line) { (void)line; }
+void prepLine(unsigned line, Pixels& pxs) {
+    line += (thisFrame >> 4);
+    auto i = 176u;
+    Pixel px;
+    px.g = (line >> 4) & 0b1111;
+    px.r = line & 0b1111;
+    while (i < 688) {
+        px.b            = ((i & 0b1110) >> 1) << 1;
+        pxs.pixels[i++] = px;
+        pxs.pixels[i++] = px;
+        ++px.b;
+        pxs.pixels[i++] = px;
+        pxs.pixels[i++] = px;
+    }
+}
 
 void prepFrame(unsigned frame) { (void)frame; }
 
@@ -434,8 +448,9 @@ void tx() {
     // Note that (nextLine - 1) is already being sent on the other channel.
     Buffer buf;
     if (nextLine < kVActive) {
-        prepLine(nextLine);
-        buf = ((nextLine & 1) ? line1 : line0).buf();
+        auto& line = (nextLine & 1) ? line1 : line0;
+        prepLine(nextLine, line);
+        buf = line.buf();
     } else if (nextLine < kVActive + kVBlankFront) {
         buf = vblankLine.buf();
     } else if (nextLine < kVActive + kVBlankFront + kVBlankSync) {
