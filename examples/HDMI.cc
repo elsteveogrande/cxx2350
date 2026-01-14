@@ -111,11 +111,11 @@ struct [[gnu::packed]] TMDS {
 };
 static_assert(sizeof(TMDS) == 4);
 
-// RGB565
+// RGB444
 struct [[gnu::packed]] Pixel {
-    unsigned b : 5 {};
-    unsigned g : 6 {};
-    unsigned r : 5 {};
+    unsigned b : 4 {};
+    unsigned g : 4 {};
+    unsigned r : 4 {};
 };
 static_assert(sizeof(Pixel) == 2);
 
@@ -180,7 +180,7 @@ constexpr static unsigned kDMAChannelA = 0;
 constexpr static unsigned kDMAChannelB = 1;
 constexpr static unsigned kIRQDMA0     = DMA::kDMAIRQs[0];
 
-struct [[gnu::packed]] Buffer {
+struct Buffer {
     uint32_t const* words; // array of words for FIFO
     uint16_t count;        // word count
 };
@@ -190,8 +190,18 @@ struct [[gnu::aligned(4)]] VBlankLine {
     TMDS const frontPorch = TMDS::sync(0, 0);
     uint32_t const cmd1_  = (1u << 12) | kHBlankSync;
     TMDS const hsync      = TMDS::sync(0, 1);
-    uint32_t const cmd2_  = (1u << 12) | kHBlankBack + kHActive;
+    uint32_t const cmd2_  = (1u << 12) | kHBlankBack;
     TMDS const backPorch  = TMDS::sync(0, 0);
+    uint32_t const foo[16] {
+        (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
+    };
 
     constexpr VBlankLine() = default;
 
@@ -206,8 +216,18 @@ struct [[gnu::aligned(4)]] VSyncLine {
     TMDS const frontPorch = TMDS::sync(1, 0);
     uint32_t const cmd1_  = (1u << 12) | kHBlankSync;
     TMDS const hsync      = TMDS::sync(1, 1);
-    uint32_t const cmd2_  = (1u << 12) | kHBlankBack + kHActive;
+    uint32_t const cmd2_  = (1u << 12) | kHBlankBack;
     TMDS const backPorch  = TMDS::sync(1, 0);
+    uint32_t const foo[16] {
+        (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
+        (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
+    };
 
     constexpr VSyncLine() = default;
 
@@ -218,17 +238,16 @@ struct [[gnu::aligned(4)]] VSyncLine {
 };
 
 struct [[gnu::packed]] [[gnu::aligned(4)]] Pixels {
-    constexpr static Pixel const kDefault {.b = 20, .g = 1, .r = 31};
+    constexpr static Pixel const kDefault {.b = 10, .g = 1, .r = 15};
 
     uint32_t const cmd0_  = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
-    TMDS const frontPorch = TMDS::sync(0, 0);          //
-    uint32_t const cmd1_  = (1u << 12) | kHBlankSync;  //
-    TMDS const hsync      = TMDS::sync(0, 1);          //
-
-    uint32_t const cmd2_ = (1u << 12) | kHBlankBack;
-    TMDS const backPorch = TMDS::sync(0, 0);
-    uint32_t const cmd_  = (2u << 12) | kHActive; // HSTX_CMD_TMDS
-    Pixel pixels[kHActive];                       // packed RGB565 pixels follow
+    TMDS const frontPorch = TMDS::sync(0, 0);
+    uint32_t const cmd1_  = (1u << 12) | kHBlankSync;
+    TMDS const hsync      = TMDS::sync(0, 1);
+    uint32_t const cmd2_  = (1u << 12) | kHBlankBack;
+    TMDS const backPorch  = TMDS::sync(0, 0);
+    uint32_t const cmd_   = (2u << 12) | kHActive; // HSTX_CMD_TMDS
+    Pixel pixels[kHActive];                        // packed RGB444 pixels follow
 
     void clear() {
         for (auto i = 0u; i < kHActive; i++) { pixels[i] = kDefault; }
@@ -333,30 +352,15 @@ void configHSTX() {
     hstx.bits[6] = {.selectP = 10, .selectN = 11, .invert = 0};
     hstx.bits[7] = {.selectP = 10, .selectN = 11, .invert = 1};
 
-    // Configure the HSTX expander for RGB565.
-    // A packed 32-bit word has 2 pixels:
-    //
-    //  3         2         1
-    // 10987654321098765432109876543210
-    // RRRRRGGGGGGBBBBBRRRRRGGGGGGBBBBB
-    //
-    // Each 16-bit pixel looks like:
-    // 1    1
-    // 5432109876543210
-    // RRRRRGGGGGGBBBBB; so to get R, G, and B into position (still 8-bit color
-    // vals):
-    //         RRRRR--- (shift R right by 8)
-    //         GGGGGG-- (shift G right by 3)
-    //         BBBBB--- (shift B left by 3)
-    //
-    // we'll need L2/1/0 bit-width values (remember they're one less) of 4, 5, and
-    // 4, and right-rotation values of 8, 3, and (32 - 3).
-
     hstx.expandShift = {
         .rawShift = 0, .rawNShifts = 1, .encShift = 16, .encNShifts = 2};
 
+    // ----RRRRGGGGBBBB (an RGB444 pixel)
+    // ----RRRR-------- -> right 4 bits -> --------RRRR----
+    // --------GGGG---- -> stays put    -> --------GGGG----
+    // ------------BBBB -> left 4 bits  -> --------BBBB----
     hstx.expandTMDS = {
-        .l0Rot = 29, .l0NBits = 4, .l1Rot = 3, .l1NBits = 5, .l2Rot = 8, .l2NBits = 4};
+        .l0Rot = 28, .l0NBits = 3, .l1Rot = 0, .l1NBits = 3, .l2Rot = 4, .l2NBits = 3};
 
     hstx.csr = {
         .enable = true, .expandEnable = true, .shift = 2, .nShifts = 5, .clkDiv = 5};
@@ -384,14 +388,32 @@ void initBusControl() { resets.unreset(Resets::Bit::BUSCTRL, true); }
 
 void configBusControl() { rp2350::sys::busControl.priority.dmaRead = 1; }
 
-constexpr VBlankLine const vblankLine;
-constexpr VSyncLine const vsyncLine;
+constexpr VBlankLine const vblankLine {};
+constexpr VSyncLine const vsyncLine {};
 
 void prepLine(unsigned line) { (void)line; }
 
 void prepFrame(unsigned frame) { (void)frame; }
 
+struct Entered final {
+    bool v {false};
+
+    struct RAII final {
+        Entered& e;
+        RAII(Entered& e) : e(e) {
+            if (e.v) { sys::abort(); }
+            e.v = true;
+        }
+        ~RAII() { e.v = false; }
+    };
+
+    auto enter() { return RAII {*this}; }
+};
+
 void tx() {
+    static Entered entered;
+    auto foo = entered.enter();
+
     auto& irq = rp2350::dma.irqRegs(0);
 
     // Detect which DMA just completed
@@ -404,6 +426,9 @@ void tx() {
     } else {
         return;
     }
+
+    auto& ch = rp2350::dma.channels[dmaChannel];
+    if (ch.ctrl.ahbError) { sys::abort(); }
 
     // nextLine is the next one to "draw" out; prepare it.
     // Note that (nextLine - 1) is already being sent on the other channel.
@@ -418,7 +443,7 @@ void tx() {
     } else {
         buf = vblankLine.buf();
     }
-    auto& ch      = rp2350::dma.channels[dmaChannel];
+
     ch.readAddr   = uintptr_t(buf.words);
     ch.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
 
@@ -450,6 +475,8 @@ void tx() {
     configHSTX();
     configBusControl();
 
+    new (&line0) Pixels();
+    new (&line1) Pixels();
     line0.clear();
     line1.clear();
 
@@ -491,7 +518,7 @@ void tx() {
     m33.clrPendIRQ(kIRQDMA0);
     m33.enableIRQ(kIRQDMA0);
 
-    thisFrame = ~0u;         // will increment to first frame, frame 0
+    thisFrame = ~0u;         // will increment to first frame (0)
     nextLine  = kVTotal - 1; // will wrap back to 0, bumping frame
 
     rp2350::dma.multiChanTrigger.channels = 1u << kDMAChannelA;

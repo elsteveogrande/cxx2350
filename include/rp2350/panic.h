@@ -9,6 +9,18 @@
 
 namespace rp2350::sys {
 
+[[gnu::used]] [[gnu::noinline]] [[noreturn]]
+extern void panic();
+
+[[gnu::used]] [[clang::always_inline]] [[noreturn]]
+inline void abort() {
+    asm volatile(".short 0xde00");
+    __builtin_unreachable();
+}
+
+[[gnu::used]] [[gnu::noinline]] [[noreturn]]
+extern void _panic();
+
 struct PanicContext {
     uint32_t sp;
     uint32_t r4;
@@ -30,9 +42,6 @@ struct PanicContext {
     uint32_t pc;
     uint32_t psr;
 };
-
-[[gnu::used]] [[gnu::noinline]] [[noreturn]]
-extern void panic();
 
 struct PanicTX {
     constexpr static unsigned kGPIO   = 0;
