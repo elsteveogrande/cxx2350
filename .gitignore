@@ -12,3 +12,4 @@ random/
 priv/
 .foo
 old
+.DS_Store

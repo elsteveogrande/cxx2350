@@ -11,8 +11,6 @@
 #include <rp2350/ticks.h>
 #include <rp2350/uart.h>
 
-#include "HDMI.Image.h"
-
 #include "config.h"
 
 // For 864x480 at appx. 60fps

@@ -122,6 +122,15 @@ struct PanicTX {
     }
 };
 
+inline void delay1() {
+    xosc.count = 12'000'000 / 1000; // TODO un-hardcode
+    while (xosc.count) { rp2350::sys::nop(); }
+}
+
+inline void delay(unsigned ms) {
+    while (ms--) { delay1(); }
+}
+
 [[gnu::used]] [[gnu::noinline]] [[noreturn]]
 inline void panic(PanicContext const& cx) {
     (void)cx;

@@ -53,7 +53,9 @@ dump: build/examples/$(EXAMPLE).elf
 
 # Examples
 
-build/examples/HDMI.elf: build/examples/HDMI.cc.o layout.ld build/librp2350.a examples/link_flags.txt examples/HDMI.Image.h
+examples: build/examples/HDMI.elf build/examples/Blink.elf build/examples/UARTHello.elf
+
+build/examples/%.elf: build/examples/%.cc.o layout.ld build/librp2350.a examples/link_flags.txt
 	mkdir -p build build/examples
 	$(CXX) @examples/link_flags.txt -o $@ $<
 
