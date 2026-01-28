@@ -9,7 +9,7 @@ all: build/examples/$(EXAMPLE).elf
 build/librp2350.a: build/interrupts.s.o
 	ar -r $@ $<
 
-build/%.s.o: include/rp2350/%.s
+build/%.s.o: include/rp2350/asm/%.s
 	mkdir -p build build/examples
 	$(CXX) @compile_flags.txt -xassembler -c -o $@ $<
 
