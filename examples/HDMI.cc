@@ -459,27 +459,18 @@ void tx() {
     irq.status = (1u << dmaChannel); // clear flag
 }
 
-// // The actual application startup code, called by reset handler
-[[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
-    issueResets();
-    sys::initInterrupts();
-    sys::initCPUBasic();
-    sys::initSystemClock();
-    sys::initSystemTicks();
-    sys::initRefClock();
-    sys::initPeriphClock();
-    initBusControl();
-    initGPIO();
-    initDMA();
-    initHSTX();
-    configHSTX();
-    configBusControl();
+[[gnu::always_inline]] void pause(uint16_t ms) {
+    // bf00  nop
+    // 3901  subs  r1, #0x1
+    // d1fc  bne   (imm -8)
+    constexpr static unsigned kCyclesPerIter = 3;
+    constexpr static unsigned kItersPerMS = (sys::kSysHz / kCyclesPerIter / 1000) - 1;
+    while (ms--) {
+        for (auto i = 0u; i < kItersPerMS; i++) { sys::Insns().nop(); }
+    }
+}
 
-    new (&line0) Pixels();
-    new (&line1) Pixels();
-    line0.clear();
-    line1.clear();
-
+void setupDMAs() {
     // Set up the two DMA channels; initially point them at dummy buffers (blank
     // lines).
     auto buf = vblankLine.buf();
@@ -517,18 +508,38 @@ void tx() {
     sys::irqHandlers[kIRQDMA0] = tx;
     m33.clrPendIRQ(kIRQDMA0);
     m33.enableIRQ(kIRQDMA0);
+}
+
+// // The actual application startup code, called by reset handler
+[[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
+    issueResets();
+    sys::initInterrupts();
+    sys::initCPUBasic();
+    sys::initSystemClock();
+    sys::initSystemTicks();
+    sys::initRefClock();
+    sys::initPeriphClock();
+    initBusControl();
+    initGPIO();
+    initDMA();
+    initHSTX();
+    configHSTX();
+    configBusControl();
+
+    new (&line0) Pixels();
+    new (&line1) Pixels();
+    line0.clear();
+    line1.clear();
 
     thisFrame = ~0u;         // will increment to first frame (0)
     nextLine  = kVTotal - 1; // will wrap back to 0, bumping frame
 
+    setupDMAs();
     rp2350::dma.multiChanTrigger.channels = 1u << kDMAChannelA;
 
     while (true) {
         auto f = thisFrame % 60;
-        if (f < 30) {
-            sio.gpioOutSet = 1 << 25;
-        } else {
-            sio.gpioOutClr = 1 << 25;
-        }
+
+        ((f < 4) ? sio.gpioOutClr : sio.gpioOutSet) = 1 << 25;
     }
 }
