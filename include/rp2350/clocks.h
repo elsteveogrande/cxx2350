@@ -180,14 +180,14 @@ struct Clocks {
     };
 
     struct Ref {
-        enum class AuxSource {
+        enum class AuxSource : unsigned {
             PLL_USB              = 0,
             PLL_GPIN0            = 1,
             PLL_GPIN1            = 2,
             PLL_USB_PRI_REF_OPCG = 3,
         };
 
-        enum class Source {
+        enum class Source : unsigned {
             ROSC_PH     = 0,
             CLK_REF_AUX = 1,
             XOSC        = 2,
@@ -214,7 +214,7 @@ struct Clocks {
     };
 
     struct Sys {
-        enum class AuxSource {
+        enum class AuxSource : unsigned {
             PLL_SYS   = 0,
             PLL_USB   = 1,
             ROSC      = 2,
@@ -223,7 +223,7 @@ struct Clocks {
             PLL_GPIN1 = 5,
         };
 
-        enum class Source {
+        enum class Source : unsigned {
             CLK_REF     = 0,
             CLK_SYS_AUX = 1,
         };
@@ -246,7 +246,7 @@ struct Clocks {
     };
 
     struct Peri {
-        enum class AuxSource {
+        enum class AuxSource : unsigned {
             CLK_SYS = 0,
             PLL_SYS = 1,
             PLL_USB = 2,
@@ -336,5 +336,37 @@ struct Clocks {
     // TODO all the others
 };
 inline auto& clocks = *(Clocks*)(0x40010000);
+
+namespace sys {
+inline void initSystemClock(unsigned fbDiv, unsigned div1, unsigned div2) {
+    sys::xosc.init();
+    sys::sysPLL.init(fbDiv, div1, div2);
+
+    clocks.sys.control = {.source    = Clocks::Sys::Source::CLK_SYS_AUX,
+                          .auxSource = Clocks::Sys::AuxSource::PLL_SYS};
+    clocks.sys.div     = {.fraction = 0, .integer = 1};
+}
+
+inline void initRefClock() {
+    clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
+    clocks.ref.div     = {.fraction = 0, .integer = 1};
+}
+
+inline void initPeriphClock() {
+    clocks.peri.control = {
+        .auxSource = Clocks::Peri::AuxSource::PLL_SYS, .kill = false, .enable = true};
+    clocks.peri.div = {.fraction = 0, .integer = 1};
+}
+
+inline void initHSTXClock() {
+    update(&clocks.hstx.control, [](auto& _) {
+        _.zero();
+        _->auxSource = Clocks::HSTX::AuxSource::CLK_SYS;
+        _->kill      = false;
+        _->enable    = true;
+    });
+    clocks.hstx.div = {.fraction = 0, .integer = 1};
+}
+} // namespace sys
 
 } // namespace rp2350

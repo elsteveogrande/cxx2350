@@ -46,6 +46,7 @@ gdb: build/examples/$(EXAMPLE).elf
 	gdb $< \
 		-ex "target extended-remote localhost:3333" \
 		-ex "b hardFault" \
+		-ex "b dval" \
 
 dump: build/examples/$(EXAMPLE).elf
 	llvm-readelf --all $<
@@ -55,22 +56,16 @@ dump: build/examples/$(EXAMPLE).elf
 
 examples: build/examples/HDMI.elf build/examples/Blink.elf build/examples/UARTHello.elf
 
-build/examples/%.elf: build/examples/%.cc.o layout.ld build/librp2350.a examples/link_flags.txt
+build/examples/%.elf: build/examples/%.cc.o layout.ld build/librp2350.a link_flags.txt
 	mkdir -p build build/examples
-	$(CXX) @examples/link_flags.txt -o $@ $<
+	$(CXX) @link_flags.txt -o $@ $<
 
 build/examples/%.cc.o: examples/%.cc include/**/* compile_flags.txt
 	mkdir -p build build/examples
-	mkdir -p build build/examples
 	$(CXX) @compile_flags.txt -I.. -o $@ -c $<
 
-examples/HDMI.Image.h: misc/testpattern.864.486.png misc/hstxpixels.py
-	mkdir -p build build/examples
-	magick -size 864x486 $< pnm:- \
-	    | python3 misc/hstxpixels.py testPattern > $@
-
-misc/testpattern.864.486.png: misc/testpattern.svg
-	rsvg-convert -f png --width 864 --height 486 -o $@ $<
+misc/testpattern.800.480.png: misc/testpattern.svg
+	rsvg-convert -f png --width 800 --height 480 -o $@ $<
 
 misc/testpattern.svg: misc/testpattern.PM5644.svg
 	cat $< \

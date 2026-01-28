@@ -45,7 +45,7 @@ struct PanicContext {
 
 struct PanicTX {
     constexpr static unsigned kGPIO   = 0;
-    constexpr static unsigned kBaud   = 9600;
+    constexpr static unsigned kBaud   = 19200;
     constexpr static unsigned kClocks = 12'000'000 / kBaud; // TODO un-hardcode
 
     static_assert(kGPIO < 32);

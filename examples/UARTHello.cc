@@ -42,18 +42,16 @@ template <uint16_t N> struct Buffer {
     bool full() const { return size() == N - 1; }
 
     void push(uint8_t x) {
-        if (!full()) {
-            buf[tail] = x;
-            tail      = (tail + 1) % N;
-        }
+        while (full()) { sys::debug() << "push:full"; }
+        buf[tail] = x;
+        tail      = (tail + 1) % N;
     }
 
     uint8_t pop() {
         uint8_t ret = 0xff;
-        if (!empty()) {
-            ret  = buf[head];
-            head = (head + 1) % N;
-        }
+        while (empty()) { sys::debug() << "pop:empty"; }
+        ret  = buf[head];
+        head = (head + 1) % N;
         return ret;
     }
 };
@@ -86,60 +84,37 @@ void putS(char const* s) {
 }
 
 void uart0IRQ() {
-    while (!uart0.flags.rxEmpty && !rxBuffer.full()) { rxBuffer.push(uart0.data.data); }
-    while (!uart0.flags.txFull && !txBuffer.empty()) {
-        uart0.data.data = txBuffer.pop();
-    }
+    if (!uart0.flags.rxEmpty) { rxBuffer.push(uart0.data.data); }
+    if (!uart0.flags.txFull && !txBuffer.empty()) { uart0.data.data = txBuffer.pop(); }
     uart0.intClear.u32() = 0x7ff;
 }
 
 // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
+    resets.issueResets();
     sys::initInterrupts();
-    sys::xosc.init();
-    sys::sysPLL.init(sys::kFBDiv, sys::kDiv1, sys::kDiv2);
+    sys::initCPUBasic();
+    sys::initSystemClock(sys::kFBDiv, sys::kDiv1, sys::kDiv2);
+    sys::initRefClock();
+    sys::initPeriphClock();
+    sys::initSystemTicks();
+    sys::initGPIO();
 
-    clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
-    clocks.ref.div     = {.fraction = 0, .integer = 1};
-
-    clocks.sys.control = {.source    = Clocks::Sys::Source::CLK_SYS_AUX,
-                          .auxSource = Clocks::Sys::AuxSource::PLL_SYS};
-    clocks.sys.div     = {.fraction = 0, .integer = 1};
-
-    // p569: SDK expects nominal 1uS system ticks, as does Arm internals.
-    // Although we don't use the SDK we'll assume 1uS everywhere as well.
-    ticks.proc0.control.enabled = false; // disable while configuring
-    ticks.proc0.cycles.count    = 12;
-    ticks.proc0.control.enabled = true;
-    ticks.proc1.control.enabled = false; // disable while configuring
-    ticks.proc1.cycles.count    = 12;
-    ticks.proc1.control.enabled = true;
-
-    m33.ccr().unalignedTrap = true;
-    m33.ccr().div0Trap      = true;
-
-    m33.rvr()         = 1000;
-    m33.csr().enable  = 1;
-    m33.csr().tickInt = 1;
-
-    resets.unreset(Resets::Bit::PADSBANK0);
-    resets.unreset(Resets::Bit::IOBANK0);
-
-    initOutput<25>();         // config LED
     sio.gpioOutSet = 1 << 25; // turn it on
 
     initOutput<0>(GPIO::FuncSel<0>::UART0TX);
     initInput<1>(GPIO::FuncSel<1>::UART0RX);
 
-    sys::irqHandlers[uart0.irqn()] = uart0IRQ;
     resets.reset(Resets::Bit::UART0);
-    resets.unreset(Resets::Bit::UART0);
-    uart0.init(9600);
+    for (unsigned i = 0; i < 1000000; i++) { sys::Insns().nop(); }
+    sys::irqHandlers[uart0.irqn()] = uart0IRQ;
     m33.enableIRQ(uart0.irqn());
+    resets.unreset(Resets::Bit::UART0);
+    uart0.init(sys::kSysHz, 19200);
 
     while (true) {
         putHex(4, 0xbeef);
         putS(" hello ");
-        sys::Insns().wfi();
+        sys::Insns().nop();
     }
 }

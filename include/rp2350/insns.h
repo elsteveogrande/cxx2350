@@ -63,4 +63,24 @@ inline void nop() {
     Insns {}.nop();
 }
 
+#pragma clang optimize off
+inline void const* volatile dval_ {};
+[[gnu::noinline]] inline void dval(char const* v) { dval_ = &v; }
+[[gnu::noinline]] inline void dval(auto const& v) { dval_ = &v; }
+#pragma clang optimize off
+
+struct Debug {
+    struct Stmt {
+        [[gnu::used]] [[gnu::retain]] [[gnu::noinline]] ~Stmt() { sys::nop(); }
+
+        Stmt& operator<<(auto&& x) {
+            dval(x);
+            return *this;
+        }
+    };
+    Stmt operator()() { return {}; }
+};
+
+[[gnu::used]] [[gnu::retain]] inline Debug debug;
+
 } // namespace rp2350::sys

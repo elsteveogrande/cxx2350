@@ -118,60 +118,6 @@ struct [[gnu::packed]] Pixel {
 };
 static_assert(sizeof(Pixel) == 2);
 
-namespace rp2350::sys {
-
-void initCPUBasic() {
-    m33.ccr().unalignedTrap = true;
-    m33.ccr().div0Trap      = true;
-}
-
-void initSystemClock() {
-    xosc.init();
-    sys::sysPLL.init(sys::kFBDiv, sys::kDiv1, sys::kDiv2);
-
-    clocks.sys.control = {.source    = Clocks::Sys::Source::CLK_SYS_AUX,
-                          .auxSource = Clocks::Sys::AuxSource::PLL_SYS};
-    clocks.sys.div     = {.fraction = 0, .integer = 1};
-}
-
-void initRefClock() {
-    clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
-    clocks.ref.div     = {.fraction = 0, .integer = 1};
-}
-
-void initPeriphClock() {
-    clocks.peri.control = {
-        .auxSource = Clocks::Peri::AuxSource::PLL_SYS, .kill = false, .enable = true};
-    clocks.peri.div = {.fraction = 0, .integer = 1};
-}
-
-void initHSTXClock() {
-    update(&clocks.hstx.control, [](auto& _) {
-        _.zero();
-        _->auxSource = Clocks::HSTX::AuxSource::CLK_SYS;
-        _->kill      = false;
-        _->enable    = true;
-    });
-    clocks.hstx.div = {.fraction = 0, .integer = 1};
-}
-
-void initSystemTicks() {
-    // p569: SDK expects nominal 1uS system ticks, as does Arm internals.
-    // Although we don't use the SDK we'll assume 1uS everywhere as well.
-    ticks.proc0.control.enabled = false; // disable while configuring
-    ticks.proc0.cycles.count    = 12;
-    ticks.proc0.control.enabled = true;
-    ticks.proc1.control.enabled = false; // disable while configuring
-    ticks.proc1.cycles.count    = 12;
-    ticks.proc1.control.enabled = true;
-
-    m33.rvr()         = 1000;
-    m33.csr().enable  = 1;
-    m33.csr().tickInt = 1;
-}
-
-} // namespace rp2350::sys
-
 using namespace rp2350;
 
 constexpr static unsigned kHSTXDREQ    = 52; // p.1102
@@ -263,56 +209,6 @@ auto& line1 = *(Pixels*)(0x20081000); // Odd lines' pixels
 
 unsigned nextLine  = 0;
 unsigned thisFrame = 0;
-
-void issueResets() {
-    // Turn reset on for everything except QSPI (since we're running on flash).
-    // clang-format off
-    constexpr static uint32_t kMask = 0
-        | unsigned(Resets::Bit::ADC      )
-        | unsigned(Resets::Bit::BUSCTRL  )
-        | unsigned(Resets::Bit::DMA      )
-        | unsigned(Resets::Bit::HSTX     )
-        | unsigned(Resets::Bit::I2C0     )
-        | unsigned(Resets::Bit::I2C1     )
-        | unsigned(Resets::Bit::IOBANK0  )
-        | unsigned(Resets::Bit::PADSBANK0)
-        | unsigned(Resets::Bit::PIO0      )
-        | unsigned(Resets::Bit::PIO1      )
-        | unsigned(Resets::Bit::PIO2      )
-        | unsigned(Resets::Bit::PWM       )
-        | unsigned(Resets::Bit::SHA256    )
-        | unsigned(Resets::Bit::SPI0      )
-        | unsigned(Resets::Bit::SPI1      )
-        | unsigned(Resets::Bit::TIMER0    )
-        | unsigned(Resets::Bit::TIMER1    )
-        | unsigned(Resets::Bit::TRNG      )
-        | unsigned(Resets::Bit::UART0     )
-        | unsigned(Resets::Bit::UART1     )
-        | unsigned(Resets::Bit::USBCTRL   )
-        // We won't reset these, they are needed for even minimal operation.
-        // If the application wants to mess with these it still can, but we
-        // won't automatically reset these.
-        // | unsigned(Resets::Bit::IOQSPI    )
-        // | unsigned(Resets::Bit::PADSQSPI  )
-        // | unsigned(Resets::Bit::PLLSYS    )
-        // | unsigned(Resets::Bit::PLLUSB    )
-        // | unsigned(Resets::Bit::JTAG      )
-        // | unsigned(Resets::Bit::SYSCFG    )
-        // | unsigned(Resets::Bit::SYSINFO   )
-        // | unsigned(Resets::Bit::TBMAN     )
-    ;
-    // clang-format on
-
-    resets.resets |= kMask;
-    // Some components seem to need a little bit of time before un-reset.
-    for (unsigned i = 0; i < 1000000; i++) { sys::Insns().nop(); }
-}
-
-void initGPIO() {
-    resets.unreset(Resets::Bit::PADSBANK0, true);
-    resets.unreset(Resets::Bit::IOBANK0, true);
-    initOutput<25>(); // config LED
-}
 
 void initDMA() { resets.unreset(Resets::Bit::DMA, true); }
 
@@ -511,15 +407,15 @@ void setupDMAs() {
 
 // // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
-    issueResets();
+    resets.issueResets();
     sys::initInterrupts();
     sys::initCPUBasic();
-    sys::initSystemClock();
-    sys::initSystemTicks();
+    sys::initSystemClock(sys::kFBDiv, sys::kDiv1, sys::kDiv2);
     sys::initRefClock();
     sys::initPeriphClock();
+    sys::initSystemTicks();
+    sys::initGPIO();
     initBusControl();
-    initGPIO();
     initDMA();
     initHSTX();
     configHSTX();

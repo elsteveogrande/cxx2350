@@ -83,10 +83,61 @@ struct Resets {
 
     void unreset(Bit _bit, bool wait = true) {
         uint32_t bits = uint32_t(_bit);
-        if (resets & bits || (resetDone & bits) != bits) {
+        if ((resets & bits) || (resetDone & bits) != bits) {
             resets &= ~bits;
-            while (wait && ((resetDone & bits) != bits)) { rp2350::sys::nop(); }
-        }
+            if (wait) {
+                while (true) {
+                    auto const done = resetDone;
+                    if ((done & bits) == bits) { break; }
+                    sys::debug() << "unreset: done=" << done << " expect=" << bits;
+                    rp2350::sys::nop();
+                }
+            }
+        };
+    }
+
+    void issueResets() {
+        // Turn reset on for everything except QSPI (since we're running on flash).
+        // clang-format off
+    constexpr static uint32_t kMask = 0
+        | unsigned(Resets::Bit::ADC      )
+        | unsigned(Resets::Bit::BUSCTRL  )
+        | unsigned(Resets::Bit::DMA      )
+        | unsigned(Resets::Bit::HSTX     )
+        | unsigned(Resets::Bit::I2C0     )
+        | unsigned(Resets::Bit::I2C1     )
+        | unsigned(Resets::Bit::IOBANK0  )
+        | unsigned(Resets::Bit::PADSBANK0)
+        | unsigned(Resets::Bit::PIO0      )
+        | unsigned(Resets::Bit::PIO1      )
+        | unsigned(Resets::Bit::PIO2      )
+        | unsigned(Resets::Bit::PWM       )
+        | unsigned(Resets::Bit::SHA256    )
+        | unsigned(Resets::Bit::SPI0      )
+        | unsigned(Resets::Bit::SPI1      )
+        | unsigned(Resets::Bit::TIMER0    )
+        | unsigned(Resets::Bit::TIMER1    )
+        | unsigned(Resets::Bit::TRNG      )
+        | unsigned(Resets::Bit::UART0     )
+        | unsigned(Resets::Bit::UART1     )
+        | unsigned(Resets::Bit::USBCTRL   )
+        // We won't reset these, they are needed for even minimal operation.
+        // If the application wants to mess with these it still can, but we
+        // won't automatically reset these.
+        // | unsigned(Resets::Bit::IOQSPI    )
+        // | unsigned(Resets::Bit::PADSQSPI  )
+        // | unsigned(Resets::Bit::PLLSYS    )
+        // | unsigned(Resets::Bit::PLLUSB    )
+        // | unsigned(Resets::Bit::JTAG      )
+        // | unsigned(Resets::Bit::SYSCFG    )
+        // | unsigned(Resets::Bit::SYSINFO   )
+        // | unsigned(Resets::Bit::TBMAN     )
+    ;
+        // clang-format on
+
+        resets |= kMask;
+        // Some components seem to need a little bit of time before un-reset.
+        for (unsigned i = 0; i < 1000000; i++) { sys::Insns().nop(); }
     }
 };
 inline auto& resets = *(Resets*)(0x40020000);
