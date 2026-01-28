@@ -15,18 +15,18 @@
 
 // For 864x480 at appx. 60fps
 static_assert(rp2350::sys::kSysHz == 150'000'000);
-constexpr static unsigned kHActive     = 864;
-constexpr static unsigned kVActive     = 486;
+constexpr static unsigned kHActive = 864;
+constexpr static unsigned kVActive = 486;
 constexpr static unsigned kHBlankFront = 36;
-constexpr static unsigned kHBlankSync  = 64;
-constexpr static unsigned kHBlankBack  = 36;
-constexpr static unsigned kHBlank      = kHBlankFront + kHBlankSync + kHBlankBack;
+constexpr static unsigned kHBlankSync = 64;
+constexpr static unsigned kHBlankBack = 36;
+constexpr static unsigned kHBlank = kHBlankFront + kHBlankSync + kHBlankBack;
 constexpr static unsigned kVBlankFront = 4;
-constexpr static unsigned kVBlankSync  = 6;
-constexpr static unsigned kVBlankBack  = 4;
-constexpr static unsigned kVBlank      = kVBlankFront + kVBlankSync + kVBlankBack;
-constexpr static unsigned kHTotal      = kHActive + kHBlank;
-constexpr static unsigned kVTotal      = kVActive + kVBlank;
+constexpr static unsigned kVBlankSync = 6;
+constexpr static unsigned kVBlankBack = 4;
+constexpr static unsigned kVBlank = kVBlankFront + kVBlankSync + kVBlankBack;
+constexpr static unsigned kHTotal = kHActive + kHBlank;
+constexpr static unsigned kVTotal = kVActive + kVBlank;
 
 namespace rp2350::sys {
 
@@ -120,10 +120,10 @@ static_assert(sizeof(Pixel) == 2);
 
 using namespace rp2350;
 
-constexpr static unsigned kHSTXDREQ    = 52; // p.1102
+constexpr static unsigned kHSTXDREQ = 52; // p.1102
 constexpr static unsigned kDMAChannelA = 0;
 constexpr static unsigned kDMAChannelB = 1;
-constexpr static unsigned kIRQDMA0     = DMA::kDMAIRQs[0];
+constexpr static unsigned kIRQDMA0 = DMA::kDMAIRQs[0];
 
 struct Buffer {
     uint32_t const* words; // array of words for FIFO
@@ -131,12 +131,12 @@ struct Buffer {
 };
 
 struct [[gnu::aligned(4)]] VBlankLine {
-    uint32_t const cmd0_  = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
+    uint32_t const cmd0_ = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
     TMDS const frontPorch = TMDS::sync(0, 0);
-    uint32_t const cmd1_  = (1u << 12) | kHBlankSync;
-    TMDS const hsync      = TMDS::sync(0, 1);
-    uint32_t const cmd2_  = (1u << 12) | kHBlankBack;
-    TMDS const backPorch  = TMDS::sync(0, 0);
+    uint32_t const cmd1_ = (1u << 12) | kHBlankSync;
+    TMDS const hsync = TMDS::sync(0, 1);
+    uint32_t const cmd2_ = (1u << 12) | kHBlankBack;
+    TMDS const backPorch = TMDS::sync(0, 0);
     uint32_t const foo[16] {
         (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
         (1u << 12) | kHActive >> 4, TMDS::sync(0, 0).u32(),
@@ -157,12 +157,12 @@ struct [[gnu::aligned(4)]] VBlankLine {
 };
 
 struct [[gnu::aligned(4)]] VSyncLine {
-    uint32_t const cmd0_  = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
+    uint32_t const cmd0_ = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
     TMDS const frontPorch = TMDS::sync(1, 0);
-    uint32_t const cmd1_  = (1u << 12) | kHBlankSync;
-    TMDS const hsync      = TMDS::sync(1, 1);
-    uint32_t const cmd2_  = (1u << 12) | kHBlankBack;
-    TMDS const backPorch  = TMDS::sync(1, 0);
+    uint32_t const cmd1_ = (1u << 12) | kHBlankSync;
+    TMDS const hsync = TMDS::sync(1, 1);
+    uint32_t const cmd2_ = (1u << 12) | kHBlankBack;
+    TMDS const backPorch = TMDS::sync(1, 0);
     uint32_t const foo[16] {
         (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
         (1u << 12) | kHActive >> 4, TMDS::sync(1, 0).u32(),
@@ -185,14 +185,14 @@ struct [[gnu::aligned(4)]] VSyncLine {
 struct [[gnu::packed]] [[gnu::aligned(4)]] Pixels {
     constexpr static Pixel const kDefault {.b = 10, .g = 1, .r = 15};
 
-    uint32_t const cmd0_  = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
+    uint32_t const cmd0_ = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
     TMDS const frontPorch = TMDS::sync(0, 0);
-    uint32_t const cmd1_  = (1u << 12) | kHBlankSync;
-    TMDS const hsync      = TMDS::sync(0, 1);
-    uint32_t const cmd2_  = (1u << 12) | kHBlankBack;
-    TMDS const backPorch  = TMDS::sync(0, 0);
-    uint32_t const cmd_   = (2u << 12) | kHActive; // HSTX_CMD_TMDS
-    Pixel pixels[kHActive];                        // packed RGB444 pixels follow
+    uint32_t const cmd1_ = (1u << 12) | kHBlankSync;
+    TMDS const hsync = TMDS::sync(0, 1);
+    uint32_t const cmd2_ = (1u << 12) | kHBlankBack;
+    TMDS const backPorch = TMDS::sync(0, 0);
+    uint32_t const cmd_ = (2u << 12) | kHActive; // HSTX_CMD_TMDS
+    Pixel pixels[kHActive];                      // packed RGB444 pixels follow
 
     void clear() {
         for (auto i = 0u; i < kHActive; i++) { pixels[i] = kDefault; }
@@ -207,7 +207,7 @@ struct [[gnu::packed]] [[gnu::aligned(4)]] Pixels {
 auto& line0 = *(Pixels*)(0x20080000); // Even lines' pixels
 auto& line1 = *(Pixels*)(0x20081000); // Odd lines' pixels
 
-unsigned nextLine  = 0;
+unsigned nextLine = 0;
 unsigned thisFrame = 0;
 
 void initDMA() { resets.unreset(Resets::Bit::DMA, true); }
@@ -339,7 +339,7 @@ void tx() {
         buf = vblankLine.buf();
     }
 
-    ch.readAddr   = uintptr_t(buf.words);
+    ch.readAddr = uintptr_t(buf.words);
     ch.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
 
     // nextLine is now prepared and ready to be sent upon next invocation.
@@ -373,30 +373,30 @@ void setupDMAs() {
     auto& chA = dma.channels[kDMAChannelA];
     update(&chA.ctrl, [](auto& _) {
         _.zero();
-        _->chainTo  = kDMAChannelB;
+        _->chainTo = kDMAChannelB;
         _->incrRead = true;
-        _->treqSel  = kHSTXDREQ;
+        _->treqSel = kHSTXDREQ;
         _->dataSize = DMA::DataSize::_32BIT;
-        _->enable   = true;
+        _->enable = true;
     });
-    chA.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
-    chA.readAddr   = uintptr_t(buf.words);
+    chA.writeAddr = uintptr_t(&hstx.fifo().fifoWrite);
+    chA.readAddr = uintptr_t(buf.words);
     chA.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
 
     auto& chB = dma.channels[kDMAChannelB];
     update(&chB.ctrl, [](auto& _) {
         _.zero();
-        _->chainTo  = kDMAChannelA;
+        _->chainTo = kDMAChannelA;
         _->incrRead = true;
-        _->treqSel  = kHSTXDREQ;
+        _->treqSel = kHSTXDREQ;
         _->dataSize = DMA::DataSize::_32BIT;
-        _->enable   = true;
+        _->enable = true;
     });
-    chB.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
-    chB.readAddr   = uintptr_t(buf.words);
+    chB.writeAddr = uintptr_t(&hstx.fifo().fifoWrite);
+    chB.readAddr = uintptr_t(buf.words);
     chB.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
 
-    auto& irq  = rp2350::dma.irqRegs(0);
+    auto& irq = rp2350::dma.irqRegs(0);
     irq.status = (1u << kDMAChannelA) | (1u << kDMAChannelB); // clear flags
     irq.enable = (1u << kDMAChannelA) | (1u << kDMAChannelB);
 
@@ -426,15 +426,14 @@ void setupDMAs() {
     line0.clear();
     line1.clear();
 
-    thisFrame = ~0u;         // will increment to first frame (0)
-    nextLine  = kVTotal - 1; // will wrap back to 0, bumping frame
+    thisFrame = ~0u;        // will increment to first frame (0)
+    nextLine = kVTotal - 1; // will wrap back to 0, bumping frame
 
     setupDMAs();
     rp2350::dma.multiChanTrigger.channels = 1u << kDMAChannelA;
 
     while (true) {
         auto f = thisFrame % 60;
-
         ((f < 4) ? sio.gpioOutClr : sio.gpioOutSet) = 1 << 25;
     }
 }

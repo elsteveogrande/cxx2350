@@ -6,11 +6,11 @@
 namespace rp2350::sys {
 
 // Global config
-constexpr static uint64_t kXOSC  = 12'000'000;
+constexpr static uint64_t kXOSC = 12'000'000;
 constexpr static uint64_t kSysHz = 150'000'000;
 constexpr static uint64_t kFBDiv = 125;
-constexpr static uint64_t kDiv1  = 5;
-constexpr static uint64_t kDiv2  = 2;
+constexpr static uint64_t kDiv1 = 5;
+constexpr static uint64_t kDiv2 = 2;
 
 // Verify
 static_assert(16 <= kFBDiv && kFBDiv <= 320);
