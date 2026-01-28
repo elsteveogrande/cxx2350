@@ -144,11 +144,11 @@ https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf
 | **7. Resets**                                                   | `resets.h`      | ✅ |
 ||||
 | **8. Clocks**                                                   | `clocks.h`      | partial |
-| 8.2. Crystal oscillator (XOSC)                                  | `xoscpll.h`     | ✅ |
+| 8.2. Crystal oscillator (XOSC)                                  | `clocks.h`      | ✅ |
 | 8.3. Ring oscillator (ROSC)                                     |                 | Ⓧ |
 | 8.4. Low Power oscillator (LPOSC)                               |                 | Ⓧ |
 | 8.5. Tick generators                                            | `ticks.h`       | ✅ |
-| 8.6. PLL                                                        | `xoscpll.h`     | ✅ |
+| 8.6. PLL                                                        | `clocks.h`      | ✅ |
 ||||
 | **9. GPIO**                                                     | `gpio.h`        | ✅ |
 ||||

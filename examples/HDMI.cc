@@ -10,11 +10,12 @@
 #include <rp2350/resets.h>
 #include <rp2350/ticks.h>
 #include <rp2350/uart.h>
-#include <rp2350/xoscpll.h>
 
 #include "HDMI.Image.h"
 
-// For 640x480 at appx. 60fps
+#include "config.h"
+
+// For 864x480 at appx. 60fps
 static_assert(rp2350::sys::kSysHz == 150'000'000);
 constexpr static unsigned kHActive     = 864;
 constexpr static unsigned kVActive     = 486;
@@ -128,7 +129,7 @@ void initCPUBasic() {
 
 void initSystemClock() {
     xosc.init();
-    sysPLL.init();
+    sys::sysPLL.init(sys::kFBDiv, sys::kDiv1, sys::kDiv2);
 
     clocks.sys.control = {.source    = Clocks::Sys::Source::CLK_SYS_AUX,
                           .auxSource = Clocks::Sys::AuxSource::PLL_SYS};

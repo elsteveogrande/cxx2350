@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cxx20/cxxabi.h>
+#include <rp2350/clocks.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
 #include <rp2350/insns.h>
 #include <rp2350/m33.h>
-#include <rp2350/xoscpll.h>
 
 namespace rp2350::sys {
 
@@ -46,7 +46,7 @@ struct PanicContext {
 struct PanicTX {
     constexpr static unsigned kGPIO   = 0;
     constexpr static unsigned kBaud   = 9600;
-    constexpr static unsigned kClocks = sys::kXOSC / kBaud;
+    constexpr static unsigned kClocks = 12'000'000 / kBaud; // TODO un-hardcode
 
     static_assert(kGPIO < 32);
 

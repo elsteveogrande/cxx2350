@@ -8,7 +8,8 @@
 #include <rp2350/panic.h>
 #include <rp2350/resets.h>
 #include <rp2350/ticks.h>
-#include <rp2350/xoscpll.h>
+
+#include "config.h"
 
 namespace rp2350::sys {
 
@@ -29,11 +30,12 @@ namespace rp2350::sys {
 } // namespace rp2350::sys
 
 using namespace rp2350;
+using namespace rp2350::sys;
 
 // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
     xosc.init();
-    sysPLL.init();
+    sys::sysPLL.init(sys::kFBDiv, sys::kDiv1, sys::kDiv2);
 
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
     clocks.ref.div     = {.fraction = 0, .integer = 1};
@@ -61,7 +63,7 @@ using namespace rp2350;
     resets.unreset(Resets::Bit::PADSBANK0);
     resets.unreset(Resets::Bit::IOBANK0);
 
-    initGPIOOutput<25>();     // config LED
+    initOutput<25>();         // config LED
     sio.gpioOutSet = 1 << 25; // turn it on
 
     while (true) {
