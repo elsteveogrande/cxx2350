@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/insns.h>
 
 namespace rp2350 {
@@ -85,10 +85,55 @@ struct Resets {
         uint32_t bits = uint32_t(_bit);
         if (resets & bits || (resetDone & bits) != bits) {
             resets &= ~bits;
-            while (wait && ((resetDone & bits) != bits)) { rp2350::sys::nop(); }
+            while (wait && ((resetDone & bits) != bits)) { __nop(); }
         }
     }
 };
 inline auto& resets = *(Resets*)(0x40020000);
+
+// Put everything except those parts needed for basic operation into reset.
+inline void initResets() {
+    // Turn reset on for everything except QSPI (since we're running on flash).
+    // clang-format off
+    constexpr static uint32_t kMask = 0
+        | unsigned(Resets::Bit::ADC      )
+        | unsigned(Resets::Bit::BUSCTRL  )
+        | unsigned(Resets::Bit::DMA      )
+        | unsigned(Resets::Bit::HSTX     )
+        | unsigned(Resets::Bit::I2C0     )
+        | unsigned(Resets::Bit::I2C1     )
+        | unsigned(Resets::Bit::IOBANK0  )
+        | unsigned(Resets::Bit::PADSBANK0)
+        | unsigned(Resets::Bit::PIO0      )
+        | unsigned(Resets::Bit::PIO1      )
+        | unsigned(Resets::Bit::PIO2      )
+        | unsigned(Resets::Bit::PWM       )
+        | unsigned(Resets::Bit::SHA256    )
+        | unsigned(Resets::Bit::SPI0      )
+        | unsigned(Resets::Bit::SPI1      )
+        | unsigned(Resets::Bit::TIMER0    )
+        | unsigned(Resets::Bit::TIMER1    )
+        | unsigned(Resets::Bit::TRNG      )
+        | unsigned(Resets::Bit::UART0     )
+        | unsigned(Resets::Bit::UART1     )
+        | unsigned(Resets::Bit::USBCTRL   )
+        // We won't reset these, they are needed for even minimal operation.
+        // If the application wants to mess with these it still can, but we
+        // won't automatically reset these.
+        // | unsigned(Resets::Bit::IOQSPI    )
+        // | unsigned(Resets::Bit::PADSQSPI  )
+        // | unsigned(Resets::Bit::PLLSYS    )
+        // | unsigned(Resets::Bit::PLLUSB    )
+        // | unsigned(Resets::Bit::JTAG      )
+        // | unsigned(Resets::Bit::SYSCFG    )
+        // | unsigned(Resets::Bit::SYSINFO   )
+        // | unsigned(Resets::Bit::TBMAN     )
+    ;
+    // clang-format on
+
+    resets.resets |= kMask;
+    // Some components seem to need a little bit of time before un-reset.
+    for (unsigned i = 0; i < 1000000; i++) { __nop(); }
+}
 
 } // namespace rp2350

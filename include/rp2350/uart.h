@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/common.h>
 #include <rp2350/pads.h>
 #include <rp2350/resets.h>
@@ -8,8 +8,8 @@
 namespace rp2350 {
 
 // TODO
-//  To clear the interrupt, write to the relevant bits of the Interrupt Clear Register, UARTICR
-//  (bits 7 to 10 are the error clear bits).
+//  To clear the interrupt, write to the relevant bits of the Interrupt Clear Register,
+//  UARTICR (bits 7 to 10 are the error clear bits).
 
 // Section 12.1, "UART"
 template <unsigned U> struct UART {
@@ -49,7 +49,8 @@ template <unsigned U> struct UART {
         unsigned     : 16;
     };
 
-    // Fractional (sixty-fourths) part of `(CLK_PERI / target baud)`; represents (div / 64)
+    // Fractional (sixty-fourths) part of `(CLK_PERI / target baud)`; represents (div /
+    // 64)
     struct FracBaud {
         unsigned div : 6; // 5..0
         unsigned     : 26;
@@ -63,14 +64,14 @@ template <unsigned U> struct UART {
     };
 
     struct LineControl : R32 {
-        unsigned   brk          : 1;  // 0
-        unsigned   parityEnable : 1;  // 1
-        unsigned   evenParity   : 1;  // 2
-        unsigned   stop2        : 1;  // 3
-        unsigned   fifoEnable   : 1;  // 4
-        WordLength wordLength   : 2;  // 6..5
-        unsigned   stickParity  : 1;  // 7
-        unsigned                : 24; // 8
+        unsigned brk          : 1;  // 0
+        unsigned parityEnable : 1;  // 1
+        unsigned evenParity   : 1;  // 2
+        unsigned stop2        : 1;  // 3
+        unsigned fifoEnable   : 1;  // 4
+        WordLength wordLength : 2;  // 6..5
+        unsigned stickParity  : 1;  // 7
+        unsigned              : 24; // 8
     };
 
     struct Control : R32 {
@@ -118,25 +119,25 @@ template <unsigned U> struct UART {
         unsigned             : 29;
     };
 
-    Data         data;            // 0x000
-    RXStatus     rxStatus;        // 0x004
-    uint32_t     z_008;           //
-    uint32_t     z_00c;           //
-    uint32_t     z_010;           //
-    uint32_t     z_014;           //
-    Flags        flags;           // 0x018
-    uint32_t     z_01c;           //
-    uint32_t     sirLowPower;     // 0x020
-    IntBaud      intBaud;         // 0x024
-    FracBaud     fracBaud;        // 0x028
-    LineControl  lineControl;     // 0x02c
-    Control      control;         // 0x030
-    IntFIFOLevel intFIFOLevel;    // 0x034
-    IntMask      intMask;         // 0x038
-    IntMask      rawIntStatus;    // 0x03c
-    IntMask      maskedIntStatus; // 0x040
-    IntMask      intClear;        // 0x044
-    DMAControl   dmaControl;      // 0x048
+    Data data;                 // 0x000
+    RXStatus rxStatus;         // 0x004
+    uint32_t z_008;            //
+    uint32_t z_00c;            //
+    uint32_t z_010;            //
+    uint32_t z_014;            //
+    Flags flags;               // 0x018
+    uint32_t z_01c;            //
+    uint32_t sirLowPower;      // 0x020
+    IntBaud intBaud;           // 0x024
+    FracBaud fracBaud;         // 0x028
+    LineControl lineControl;   // 0x02c
+    Control control;           // 0x030
+    IntFIFOLevel intFIFOLevel; // 0x034
+    IntMask intMask;           // 0x038
+    IntMask rawIntStatus;      // 0x03c
+    IntMask maskedIntStatus;   // 0x040
+    IntMask intClear;          // 0x044
+    DMAControl dmaControl;     // 0x048
     // uint32_t periph0;         // 0xfe0
     // uint32_t periph1;         // 0xfe4
     // uint32_t periph2;         // 0xfe8
@@ -148,7 +149,8 @@ template <unsigned U> struct UART {
 
     void init(uint32_t baud = 115200) {
         // TODO take parameters.  For now hardcode 8/N/1
-        // TODO understand what's going on here.  Mostly a copy of uart_set_baudrate on PDF p973 or:
+        // TODO understand what's going on here.  Mostly a copy of uart_set_baudrate on
+        // PDF p973 or:
         // https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/hardware_uart/uart.c#L155-L180
         // or: https://developer.arm.com/documentation/ddi0183/latest/
         uint32_t div   = ((8 * sys::kSysHz) / baud) + 1;

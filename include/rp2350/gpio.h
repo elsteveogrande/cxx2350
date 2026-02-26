@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/common.h>
 #include <rp2350/pads.h>
 
@@ -14,15 +14,18 @@ namespace rp2350 {
 // These are for GPIO bank 0 (GPIOs 0 through 31) only.
 struct GPIO {
     struct Status {
-        unsigned           : 9; // 8..0
-        unsigned outToPad  : 1; // 9: output signal to pad after register override is applied
-        unsigned           : 3; // 12..10
-        unsigned oeToPad   : 1; // 13: output enable to pad after register override is applied
+        unsigned : 9; // 8..0
+        unsigned outToPad
+            : 1;      // 9: output signal to pad after register override is applied
+        unsigned : 3; // 12..10
+        unsigned oeToPad
+            : 1; // 13: output enable to pad after register override is applied
         unsigned           : 3; // 16..14
         unsigned inFromPad : 1; // 17: input signal from pad, before override is applied
         unsigned           : 8; // 25..18
-        unsigned irqToProc : 1; // 26: interrupt to processors, after override is applied
-        unsigned           : 5; // 31..27
+        unsigned irqToProc
+            : 1;      // 26: interrupt to processors, after override is applied
+        unsigned : 5; // 31..27
     };
 
     enum class Override : unsigned {

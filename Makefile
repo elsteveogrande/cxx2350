@@ -48,12 +48,20 @@ gdb: build/examples/$(EXAMPLE).elf
 		-ex "b hardFault" \
 
 dump: build/examples/$(EXAMPLE).elf
-	llvm-readelf --all $<
-	llvm-objdump -ds --debug-file-directory=/foo $<
+	llvm-objdump -f --headers $<
+	llvm-nm --demangle $< | sort -nk1
+	llvm-objdump                    \
+		-s                            \
+		--section=.bootv              \
+		--section=.init_array         \
+		--section=.rodata             \
+		--section=.data               \
+		$<
+	llvm-objdump -d --demangle --source --section=.text $<
 
 # Examples
 
-build/examples/HDMI.elf: build/examples/HDMI.cc.o layout.ld build/librp2350.a examples/link_flags.txt examples/HDMI.Image.h
+build/examples/%.elf: build/examples/%.cc.o layout.ld build/librp2350.a examples/link_flags.txt
 	mkdir -p build build/examples
 	$(CXX) @examples/link_flags.txt -o $@ $<
 
@@ -61,11 +69,6 @@ build/examples/%.cc.o: examples/%.cc include/**/* compile_flags.txt
 	mkdir -p build build/examples
 	mkdir -p build build/examples
 	$(CXX) @compile_flags.txt -I.. -o $@ -c $<
-
-examples/HDMI.Image.h: misc/testpattern.864.486.png misc/hstxpixels.py
-	mkdir -p build build/examples
-	magick -size 864x486 $< pnm:- \
-	    | python3 misc/hstxpixels.py testPattern > $@
 
 misc/testpattern.864.486.png: misc/testpattern.svg
 	rsvg-convert -f png --width 864 --height 486 -o $@ $<

@@ -1,4 +1,4 @@
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/clocks.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
@@ -38,8 +38,8 @@ using namespace rp2350;
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
     clocks.ref.div     = {.fraction = 0, .integer = 1};
 
-    clocks.sys.control = {.source    = Clocks::Sys::Source::CLK_SYS_AUX,
-                          .auxSource = Clocks::Sys::AuxSource::PLL_SYS};
+    clocks.sys.control = {.source    = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
+                          .auxSource = unsigned(Clocks::Sys::AuxSource::PLL_SYS)};
     clocks.sys.div     = {.fraction = 0, .integer = 1};
 
     // p569: SDK expects nominal 1uS system ticks, as does Arm internals.
@@ -61,14 +61,14 @@ using namespace rp2350;
     resets.unreset(Resets::Bit::PADSBANK0);
     resets.unreset(Resets::Bit::IOBANK0);
 
-    initGPIOOutput<25>();     // config LED
+    initOutput<25>();         // config LED
     sio.gpioOutSet = 1 << 25; // turn it on
 
     while (true) {
         // delay: 250 * (12k / 12MHz) -> 250ms
         for (unsigned i = 0; i < 250; i++) {
             xosc.count = 12'000;
-            while (xosc.count) { rp2350::sys::nop(); }
+            while (xosc.count) { __nop(); }
         }
         // Toggle the little LED
         sio.gpioOutXor = (1 << 25);

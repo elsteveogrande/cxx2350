@@ -1,6 +1,7 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
+#include <rp2350/xoscpll.h>
 
 namespace rp2350 {
 
@@ -55,14 +56,14 @@ struct Clocks {
     };
 
     struct Ref {
-        enum class AuxSource {
+        enum AuxSource {
             PLL_USB              = 0,
             PLL_GPIN0            = 1,
             PLL_GPIN1            = 2,
             PLL_USB_PRI_REF_OPCG = 3,
         };
 
-        enum class Source {
+        enum Source {
             ROSC_PH     = 0,
             CLK_REF_AUX = 1,
             XOSC        = 2,
@@ -109,10 +110,10 @@ struct Clocks {
         };
 
         struct Control {
-            Source source       : 1;  // 0
-            unsigned            : 4;  // 4..1
-            AuxSource auxSource : 3;  // 7..5
-            unsigned            : 24; // 31..8
+            unsigned source    : 1;  // 0
+            unsigned           : 4;  // 4..1
+            unsigned auxSource : 3;  // 7..5
+            unsigned           : 24; // 31..8
         };
 
         Control control;
@@ -121,7 +122,7 @@ struct Clocks {
     };
 
     struct Peri {
-        enum class AuxSource {
+        enum AuxSource {
             CLK_SYS = 0,
             PLL_SYS = 1,
             PLL_USB = 2,
@@ -211,5 +212,35 @@ struct Clocks {
     // TODO all the others
 };
 inline auto& clocks = *(Clocks*)(0x40010000);
+
+inline void initSystemClock() {
+    xosc.init();
+    sysPLL.init();
+
+    clocks.sys.control = {.source    = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
+                          .auxSource = unsigned(Clocks::Sys::AuxSource::PLL_SYS)};
+    clocks.sys.div     = {.fraction = 0, .integer = 1};
+}
+
+inline void initRefClock() {
+    clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
+    clocks.ref.div     = {.fraction = 0, .integer = 1};
+}
+
+inline void initPeriphClock() {
+    clocks.peri.control = {
+        .auxSource = Clocks::Peri::AuxSource::PLL_SYS, .kill = false, .enable = true};
+    clocks.peri.div = {.fraction = 0, .integer = 1};
+}
+
+inline void initHSTXClock() {
+    update(&clocks.hstx.control, [](auto& _) {
+        _.zero();
+        _->auxSource = Clocks::HSTX::AuxSource::CLK_SYS;
+        _->kill      = false;
+        _->enable    = true;
+    });
+    clocks.hstx.div = {.fraction = 0, .integer = 1};
+}
 
 } // namespace rp2350

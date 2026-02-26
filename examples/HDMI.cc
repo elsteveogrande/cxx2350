@@ -1,4 +1,4 @@
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/clocks.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
@@ -12,36 +12,26 @@
 #include <rp2350/uart.h>
 #include <rp2350/xoscpll.h>
 
-#include "HDMI.Image.h"
-
 // For 640x480 at appx. 60fps
-static_assert(rp2350::sys::kSysHz == 150'000'000);
-constexpr static unsigned kHActive     = 864;
-constexpr static unsigned kVActive     = 486;
-constexpr static unsigned kHBlankFront = 36;
-constexpr static unsigned kHBlankSync  = 64;
-constexpr static unsigned kHBlankBack  = 36;
+static_assert(rp2350::sys::kSysHz == 126'000'000);
+constexpr static unsigned kHActive     = 640;
+constexpr static unsigned kVActive     = 480;
+constexpr static unsigned kHBlankFront = 16;
+constexpr static unsigned kHBlankSync  = 96;
+constexpr static unsigned kHBlankBack  = 48;
 constexpr static unsigned kHBlank      = kHBlankFront + kHBlankSync + kHBlankBack;
-constexpr static unsigned kVBlankFront = 4;
-constexpr static unsigned kVBlankSync  = 6;
-constexpr static unsigned kVBlankBack  = 4;
+constexpr static unsigned kVBlankFront = 11;
+constexpr static unsigned kVBlankSync  = 2;
+constexpr static unsigned kVBlankBack  = 31;
 constexpr static unsigned kVBlank      = kVBlankFront + kVBlankSync + kVBlankBack;
 constexpr static unsigned kHTotal      = kHActive + kHBlank;
 constexpr static unsigned kVTotal      = kVActive + kVBlank;
 
 namespace rp2350::sys {
 
-// Need to define a couple of structures in our main file so that they are baked into
-// the ELF. These two are given `section` attributes so that they can be placed at
-// specific flash addresses (see `layout.ld`).
-
-// Interrupt vectors are needed for the thing to start; this will live at flash address
-// `0x10000000`. It can live in a different address but the default is fine.
 [[gnu::used]] [[gnu::retain]] [[gnu::section(
     ".vec_table")]] ARMVectors const gARMVectors;
 
-// Image definition is required for the RP2 bootloader; this will live at flash address
-// `0x10000100`.
 [[gnu::used]] [[gnu::retain]] [[gnu::section(
     ".image_def")]] constinit ImageDef2350ARM const gImageDef;
 
@@ -59,8 +49,6 @@ struct [[gnu::packed]] TMDS {
     unsigned     : 2;
 
     constexpr uint32_t u32() const {
-        // Avoid reinterpret-cast so we can make this constexpr.
-        // return *(uint32_t const*)(this);
         return (unsigned(ch2) << 20) | (unsigned(ch1) << 10) | (unsigned(ch0) << 0);
     }
 
@@ -130,8 +118,8 @@ void initSystemClock() {
     xosc.init();
     sysPLL.init();
 
-    clocks.sys.control = {.source    = Clocks::Sys::Source::CLK_SYS_AUX,
-                          .auxSource = Clocks::Sys::AuxSource::PLL_SYS};
+    clocks.sys.control = {.source    = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
+                          .auxSource = unsigned(Clocks::Sys::AuxSource::PLL_SYS)};
     clocks.sys.div     = {.fraction = 0, .integer = 1};
 }
 
@@ -157,12 +145,11 @@ void initHSTXClock() {
 }
 
 void initSystemTicks() {
-    // p569: SDK expects nominal 1uS system ticks, as does Arm internals.
-    // Although we don't use the SDK we'll assume 1uS everywhere as well.
-    ticks.proc0.control.enabled = false; // disable while configuring
+    // p569: SDK as well as Arm CPU expect nominal 1uS system ticks
+    ticks.proc0.control.enabled = false;
     ticks.proc0.cycles.count    = 12;
     ticks.proc0.control.enabled = true;
-    ticks.proc1.control.enabled = false; // disable while configuring
+    ticks.proc1.control.enabled = false;
     ticks.proc1.cycles.count    = 12;
     ticks.proc1.control.enabled = true;
 
@@ -306,7 +293,7 @@ void issueResets() {
 
     resets.resets |= kMask;
     // Some components seem to need a little bit of time before un-reset.
-    for (unsigned i = 0; i < 1000000; i++) { sys::Insns().nop(); }
+    for (unsigned i = 0; i < 1000000; i++) { __nop(); }
 }
 
 void initGPIO() {
@@ -343,14 +330,14 @@ void configHSTX() {
     // GPIO:        12    13   (gnd)  14    15    16    17   (gnd)  18    19
     // DVI signal:   + CHO -           + CLK -     + CH2 -           + CH1 -
 
-    hstx.bits[0] = {.selectP = 0, .selectN = 1, .invert = 0};
-    hstx.bits[1] = {.selectP = 0, .selectN = 1, .invert = 1};
-    hstx.bits[2] = {.invert = 0, .clock = true};
-    hstx.bits[3] = {.invert = 1, .clock = true};
-    hstx.bits[4] = {.selectP = 20, .selectN = 21, .invert = 0};
-    hstx.bits[5] = {.selectP = 20, .selectN = 21, .invert = 1};
-    hstx.bits[6] = {.selectP = 10, .selectN = 11, .invert = 0};
-    hstx.bits[7] = {.selectP = 10, .selectN = 11, .invert = 1};
+    hstx.bits[0] = {.selectP = 0, .selectN = 1, .invert = 1};
+    hstx.bits[1] = {.selectP = 0, .selectN = 1, .invert = 0};
+    hstx.bits[2] = {.invert = 1, .clock = true};
+    hstx.bits[3] = {.invert = 0, .clock = true};
+    hstx.bits[4] = {.selectP = 20, .selectN = 21, .invert = 1};
+    hstx.bits[5] = {.selectP = 20, .selectN = 21, .invert = 0};
+    hstx.bits[6] = {.selectP = 10, .selectN = 11, .invert = 1};
+    hstx.bits[7] = {.selectP = 10, .selectN = 11, .invert = 0};
 
     hstx.expandShift = {
         .rawShift = 0, .rawNShifts = 1, .encShift = 16, .encNShifts = 2};
@@ -415,7 +402,7 @@ struct Entered final {
     struct RAII final {
         Entered& e;
         RAII(Entered& e) : e(e) {
-            if (e.v) { sys::abort(); }
+            if (e.v) { __abort(); }
             e.v = true;
         }
         ~RAII() { e.v = false; }
@@ -442,7 +429,7 @@ void tx() {
     }
 
     auto& ch = rp2350::dma.channels[dmaChannel];
-    if (ch.ctrl.ahbError) { sys::abort(); }
+    if (ch.ctrl.ahbError) { __abort(); }
 
     // nextLine is the next one to "draw" out; prepare it.
     // Note that (nextLine - 1) is already being sent on the other channel.
@@ -476,13 +463,13 @@ void tx() {
 
 // // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
-    issueResets();
-    sys::initInterrupts();
-    sys::initCPUBasic();
-    sys::initSystemClock();
-    sys::initSystemTicks();
-    sys::initRefClock();
-    sys::initPeriphClock();
+    initResets();
+    initInterrupts();
+    initCPUBasic();
+    initSystemClock();
+    initSystemTicks();
+    initRefClock();
+    initPeriphClock();
     initBusControl();
     initGPIO();
     initDMA();
@@ -529,7 +516,7 @@ void tx() {
     irq.status = (1u << kDMAChannelA) | (1u << kDMAChannelB); // clear flags
     irq.enable = (1u << kDMAChannelA) | (1u << kDMAChannelB);
 
-    sys::irqHandlers[kIRQDMA0] = tx;
+    irqHandlers[kIRQDMA0] = tx;
     m33.clrPendIRQ(kIRQDMA0);
     m33.enableIRQ(kIRQDMA0);
 

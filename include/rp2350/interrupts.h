@@ -1,11 +1,11 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/common.h>
 #include <rp2350/insns.h>
 #include <rp2350/m33.h>
 
-namespace rp2350::sys {
+namespace rp2350 {
 
 inline void reset() {
     // Clear BSS
@@ -58,7 +58,7 @@ inline vfunc irqHandlers[kIRQHandlers] {};
 
 [[gnu::interrupt("IRQ")]]
 inline void irq() {
-    auto intn = Insns().ipsr() & 0x1ff;
+    auto intn = __currentInterrupt();
     if (intn >= 16 && intn < 16 + kIRQHandlers) {
         auto irq = intn - 16;
         if (irqHandlers[irq]) { irqHandlers[irq](); }
@@ -67,44 +67,42 @@ inline void irq() {
 }
 
 struct ARMVectors {
-    unsigned resetSP     = 0x20000c00;                  // 0 (__reset_sp)
-    void (*reset)()      = (::rp2350::sys::reset);      // 1
-    void (*nmi)()        = (::rp2350::sys::nmi);        // 2
-    void (*hardFault)()  = (::rp2350::sys::hardFault);  // 3
-    void (*memManage)()  = (::rp2350::sys::memManage);  // 4
-    void (*busFault)()   = (::rp2350::sys::busFault);   // 5
-    void (*usageFault)() = (::rp2350::sys::usageFault); // 6
-    void (*_unknown07)() = (nullptr);                   // 7
-    void (*_unknown08)() = (nullptr);                   // 8
-    void (*_unknown09)() = (nullptr);                   // 9
-    void (*_unknown0A)() = (nullptr);                   // 10
-    void (*svCall)()     = (::rp2350::sys::svCall);     // 11
-    void (*debugMon)()   = (::rp2350::sys::debugMon);   // 12
-    void (*_unknown0B)() = (nullptr);                   // 13
-    void (*pendingSV)()  = (::rp2350::sys::pendingSV);  // 14
-    void (*sysTick)()    = (::rp2350::sys::sysTick);    // 15
+    unsigned resetSP     = 0x20000c00;             // 0 (__reset_sp)
+    void (*reset)()      = (::rp2350::reset);      // 1
+    void (*nmi)()        = (::rp2350::nmi);        // 2
+    void (*hardFault)()  = (::rp2350::hardFault);  // 3
+    void (*memManage)()  = (::rp2350::memManage);  // 4
+    void (*busFault)()   = (::rp2350::busFault);   // 5
+    void (*usageFault)() = (::rp2350::usageFault); // 6
+    void (*_unknown07)() = (nullptr);              // 7
+    void (*_unknown08)() = (nullptr);              // 8
+    void (*_unknown09)() = (nullptr);              // 9
+    void (*_unknown0A)() = (nullptr);              // 10
+    void (*svCall)()     = (::rp2350::svCall);     // 11
+    void (*debugMon)()   = (::rp2350::debugMon);   // 12
+    void (*_unknown0B)() = (nullptr);              // 13
+    void (*pendingSV)()  = (::rp2350::pendingSV);  // 14
+    void (*sysTick)()    = (::rp2350::sysTick);    // 15
     void (*irqs[52])()   = {
         // 16 through 67
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
-        ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq, ::rp2350::sys::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq, ::rp2350::irq,
+        ::rp2350::irq, ::rp2350::irq,
     };
 };
 
 inline void initInterrupts() {
     // Initially, null out all IRQ handler entries
     memset(irqHandlers, 0, sizeof(irqHandlers));
-    Insns {}.enableIRQs();
+    __enableIRQs();
 }
 
-} // namespace rp2350::sys
+} // namespace rp2350

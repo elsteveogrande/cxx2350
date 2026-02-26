@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/common.h>
 
 namespace rp2350 {
@@ -151,5 +151,10 @@ struct M33 {
     void clrPendIRQ(unsigned irq) { cpr(irq >> 5) = uint32_t(1) << (irq & 31); };
 };
 inline auto& m33 = *(M33*)(0xe0000000);
+
+inline void initCPUBasic() {
+    m33.ccr().unalignedTrap = true;
+    m33.ccr().div0Trap      = true;
+}
 
 } // namespace rp2350

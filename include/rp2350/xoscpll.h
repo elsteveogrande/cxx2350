@@ -1,5 +1,5 @@
 #pragma once
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/common.h>
 #include <rp2350/insns.h>
 #include <rp2350/resets.h>
@@ -59,7 +59,7 @@ struct XOSC {
         startup           = {.delay = 500, .x4 = 1}; // around 40-50ms
         control.enable    = Control::Enable::kEnable;
         dormant.code      = Dormant::Code::kWake;
-        while (!(status.stable)) { rp2350::sys::nop(); }
+        while (!(status.stable)) { __nop(); }
     }
 };
 inline auto& xosc = *(XOSC*)(0x40048000);
@@ -113,7 +113,7 @@ struct PLL {
         fbDiv           = sys::kFBDiv;
         powerDown.pd    = false;
         powerDown.vcoPD = false;
-        while (!cs.lock) { rp2350::sys::nop(); } // wait for LOCK
+        while (!cs.lock) { __nop(); } // wait for LOCK
 
         prim.postDiv1       = sys::kDiv1;
         prim.postDiv2       = sys::kDiv2;
@@ -124,7 +124,7 @@ inline auto& sysPLL = *(PLL*)(0x40050000);
 
 inline void delay1() {
     xosc.count = sys::kXOSC / 1000;
-    while (xosc.count) { rp2350::sys::nop(); }
+    while (xosc.count) { __nop(); }
 }
 
 inline void delay(unsigned ms) {

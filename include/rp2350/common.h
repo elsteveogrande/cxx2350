@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 
 extern "C" {
 
@@ -21,14 +21,14 @@ namespace sys {
 
 // Global config
 constexpr static uint64_t kXOSC  = 12'000'000;
-constexpr static uint64_t kSysHz = 150'000'000;
-constexpr static uint64_t kFBDiv = 125;
-constexpr static uint64_t kDiv1  = 5;
-constexpr static uint64_t kDiv2  = 2;
+constexpr static uint64_t kSysHz = 126'000'000; // target is 125'875'000
+constexpr static uint64_t kFBDiv = 126;
+constexpr static uint64_t kDiv1  = 4;
+constexpr static uint64_t kDiv2  = 3;
 // Verify
 static_assert(16 <= kFBDiv && kFBDiv <= 320);
 static_assert(1 <= kDiv1 && kDiv1 <= 7);
-static_assert(1 <= kDiv2 && kDiv2 <= 7);
+static_assert(1 <= kDiv2 && kDiv2 <= kDiv1);
 static_assert(kDiv1 >= kDiv2);
 static_assert(kXOSC * kFBDiv >= 750'000'000);
 static_assert(kXOSC * kFBDiv <= 1600'000'000);
@@ -274,5 +274,11 @@ struct HSTX {
     FIFO& fifo() { return *(FIFO*)(0x50600000); }
 };
 inline auto& hstx = *(HSTX*)(0x400c0000);
+
+[[gnu::used]] [[clang::always_inline]] [[noreturn]]
+inline void __abort() {
+    asm volatile(".short 0xde00");
+    __builtin_unreachable();
+}
 
 } // namespace rp2350

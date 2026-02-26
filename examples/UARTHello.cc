@@ -1,4 +1,4 @@
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/clocks.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
@@ -14,13 +14,14 @@
 
 namespace rp2350::sys {
 
-// Need to define a couple of structures in our main file so that they are baked into the ELF.
-// These two are given `section` attributes so that they can be placed at specific flash
-// addresses (see `layout.ld`).
+// Need to define a couple of structures in our main file so that they are baked into
+// the ELF. These two are given `section` attributes so that they can be placed at
+// specific flash addresses (see `layout.ld`).
 
 // Interrupt vectors are needed for the thing to start; this will live at flash address
 // `0x10000000`. It can live in a different address but the default is fine.
-[[gnu::used]] [[gnu::retain]] [[gnu::section(".vec_table")]] ARMVectors const gARMVectors;
+[[gnu::used]] [[gnu::retain]] [[gnu::section(
+    ".vec_table")]] ARMVectors const gARMVectors;
 
 // Image definition is required for the RP2 bootloader; this will live at flash address
 // `0x10000100`.
@@ -86,21 +87,23 @@ void putS(char const* s) {
 
 void uart0IRQ() {
     while (!uart0.flags.rxEmpty && !rxBuffer.full()) { rxBuffer.push(uart0.data.data); }
-    while (!uart0.flags.txFull && !txBuffer.empty()) { uart0.data.data = txBuffer.pop(); }
+    while (!uart0.flags.txFull && !txBuffer.empty()) {
+        uart0.data.data = txBuffer.pop();
+    }
     uart0.intClear.u32() = 0x7ff;
 }
 
 // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
-    sys::initInterrupts();
+    initInterrupts();
     xosc.init();
     sysPLL.init();
 
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
     clocks.ref.div     = {.fraction = 0, .integer = 1};
 
-    clocks.sys.control = {.source    = Clocks::Sys::Source::CLK_SYS_AUX,
-                          .auxSource = Clocks::Sys::AuxSource::PLL_SYS};
+    clocks.sys.control = {.source    = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
+                          .auxSource = unsigned(Clocks::Sys::AuxSource::PLL_SYS)};
     clocks.sys.div     = {.fraction = 0, .integer = 1};
 
     // p569: SDK expects nominal 1uS system ticks, as does Arm internals.
@@ -128,7 +131,7 @@ void uart0IRQ() {
     initOutput<0>(GPIO::FuncSel<0>::UART0TX);
     initInput<1>(GPIO::FuncSel<1>::UART0RX);
 
-    sys::irqHandlers[uart0.irqn()] = uart0IRQ;
+    irqHandlers[uart0.irqn()] = uart0IRQ;
     resets.reset(Resets::Bit::UART0);
     resets.unreset(Resets::Bit::UART0);
     uart0.init(9600);
@@ -137,6 +140,6 @@ void uart0IRQ() {
     while (true) {
         putHex(4, 0xbeef);
         putS(" hello ");
-        sys::Insns().wfi();
+        rp2350::__wfi();
     }
 }

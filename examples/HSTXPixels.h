@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 
 template <uint16_t kWidth, uint16_t kHeight> struct HSTXPixels {
     constexpr uint16_t width() const { return kWidth; }
