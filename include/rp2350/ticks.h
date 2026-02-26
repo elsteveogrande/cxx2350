@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/m33.h>
 
 namespace rp2350 {
@@ -38,15 +38,12 @@ struct Ticks {
 };
 inline auto& ticks = *(Ticks*)(0x40108000);
 
-namespace sys {
-
 inline void initSystemTicks() {
-    // p569: SDK expects nominal 1uS system ticks, as does Arm internals.
-    // Although we don't use the SDK we'll assume 1uS everywhere as well.
-    ticks.proc0.control.enabled = false; // disable while configuring
+    // p569: SDK as well as Arm CPU expect nominal 1uS system ticks
+    ticks.proc0.control.enabled = false;
     ticks.proc0.cycles.count    = 12;
     ticks.proc0.control.enabled = true;
-    ticks.proc1.control.enabled = false; // disable while configuring
+    ticks.proc1.control.enabled = false;
     ticks.proc1.cycles.count    = 12;
     ticks.proc1.control.enabled = true;
 
@@ -54,7 +51,5 @@ inline void initSystemTicks() {
     m33.csr().enable  = 1;
     m33.csr().tickInt = 1;
 }
-
-} // namespace sys
 
 } // namespace rp2350

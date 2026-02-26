@@ -1,25 +1,14 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
-#include <rp2350/clocks.h>
+#include <examples/config.h>
+#include <platform.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
 #include <rp2350/insns.h>
 #include <rp2350/m33.h>
+#include <rp2350/xoscpll.h>
 
 namespace rp2350::sys {
-
-[[gnu::used]] [[gnu::noinline]] [[noreturn]]
-extern void panic();
-
-[[gnu::used]] [[clang::always_inline]] [[noreturn]]
-inline void abort() {
-    asm volatile(".short 0xde00");
-    __builtin_unreachable();
-}
-
-[[gnu::used]] [[gnu::noinline]] [[noreturn]]
-extern void _panic();
 
 struct PanicContext {
     uint32_t sp;
@@ -44,15 +33,15 @@ struct PanicContext {
 };
 
 struct PanicTX {
-    constexpr static unsigned kGPIO   = 0;
-    constexpr static unsigned kBaud   = 19200;
+    constexpr static unsigned kGPIO = 0;
+    constexpr static unsigned kBaud = 19200;
     constexpr static unsigned kClocks = 12'000'000 / kBaud; // TODO un-hardcode
 
     static_assert(kGPIO < 32);
 
     PanicTX() {
         sio.gpioOutEnbSet = (1u << kGPIO);
-        sio.gpioOutSet    = (1u << kGPIO);
+        sio.gpioOutSet = (1u << kGPIO);
 
         update(&gpio[kGPIO].control, [](auto& u) {
             u.zero();
@@ -60,10 +49,10 @@ struct PanicTX {
         });
 
         update(&padsBank0.gpio[kGPIO], [](auto& u) {
-            u->drive         = PadsBank0::Drive::k12mA;
-            u->inputEnable   = false;
+            u->drive = PadsBank0::Drive::k12mA;
+            u->inputEnable = false;
             u->outputDisable = false;
-            u->isolation     = false;
+            u->isolation = false;
         });
 
         for (auto i = 0; i < 20; i++) { delay(); }
@@ -71,7 +60,7 @@ struct PanicTX {
 
     void delay() {
         xosc.count = kClocks;
-        while (xosc.count) { rp2350::sys::nop(); }
+        while (xosc.count) { __nop(); }
     }
 
     void signal(bool x) {
@@ -123,8 +112,8 @@ struct PanicTX {
 };
 
 inline void delay1() {
-    xosc.count = 12'000'000 / 1000; // TODO un-hardcode
-    while (xosc.count) { rp2350::sys::nop(); }
+    xosc.count = kXOSC / 1000;
+    while (xosc.count) { __nop(); }
 }
 
 inline void delay(unsigned ms) {
@@ -133,11 +122,10 @@ inline void delay(unsigned ms) {
 
 [[gnu::used]] [[gnu::noinline]] [[noreturn]]
 inline void panic(PanicContext const& cx) {
-    (void)cx;
-    Insns().disableIRQs();
+    __disableIRQs();
 
-    constexpr static char const* RED    = "\x1b[0;41;1;37m";
-    constexpr static char const* YEL    = "\x1b[1;33;48;5;236m";
+    constexpr static char const* RED = "\x1b[0;41;1;37m";
+    constexpr static char const* YEL = "\x1b[1;33;48;5;236m";
     constexpr static char const* NORMAL = "\x1b[0m";
 
     PanicTX tx;
@@ -234,7 +222,7 @@ inline void panic(PanicContext const& cx) {
         unsigned i = 10000;
         while (i--) {
             xosc.count = 12000;
-            while (xosc.count) { rp2350::sys::nop(); }
+            while (xosc.count) { __nop(); }
         }
     };
 }

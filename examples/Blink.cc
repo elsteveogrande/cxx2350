@@ -1,4 +1,4 @@
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/clocks.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
@@ -8,10 +8,9 @@
 #include <rp2350/panic.h>
 #include <rp2350/resets.h>
 #include <rp2350/ticks.h>
+#include <rp2350/xoscpll.h>
 
-#include "config.h"
-
-namespace rp2350::sys {
+namespace rp2350 {
 
 // Need to define a couple of structures in our main file so that they are baked into
 // the ELF. These two are given `section` attributes so that they can be placed at
@@ -27,37 +26,36 @@ namespace rp2350::sys {
 [[gnu::used]] [[gnu::retain]] [[gnu::section(
     ".image_def")]] constinit ImageDef2350ARM const gImageDef;
 
-} // namespace rp2350::sys
+} // namespace rp2350
 
 using namespace rp2350;
-using namespace rp2350::sys;
 
 // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
     xosc.init();
-    sys::sysPLL.init(sys::kFBDiv, sys::kDiv1, sys::kDiv2);
+    sys::sysPLL.init(kFBDiv, kDiv1, kDiv2);
 
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
-    clocks.ref.div     = {.fraction = 0, .integer = 1};
+    clocks.ref.div = {.fraction = 0, .integer = 1};
 
-    clocks.sys.control = {.source    = Clocks::Sys::Source::CLK_SYS_AUX,
-                          .auxSource = Clocks::Sys::AuxSource::PLL_SYS};
-    clocks.sys.div     = {.fraction = 0, .integer = 1};
+    clocks.sys.control = {.source = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
+                          .auxSource = unsigned(Clocks::Sys::AuxSource::PLL_SYS)};
+    clocks.sys.div = {.fraction = 0, .integer = 1};
 
     // p569: SDK expects nominal 1uS system ticks, as does Arm internals.
     // Although we don't use the SDK we'll assume 1uS everywhere as well.
     ticks.proc0.control.enabled = false; // disable while configuring
-    ticks.proc0.cycles.count    = 12;
+    ticks.proc0.cycles.count = 12;
     ticks.proc0.control.enabled = true;
     ticks.proc1.control.enabled = false; // disable while configuring
-    ticks.proc1.cycles.count    = 12;
+    ticks.proc1.cycles.count = 12;
     ticks.proc1.control.enabled = true;
 
     m33.ccr().unalignedTrap = true;
-    m33.ccr().div0Trap      = true;
+    m33.ccr().div0Trap = true;
 
-    m33.rvr()         = 1000;
-    m33.csr().enable  = 1;
+    m33.rvr() = 1000;
+    m33.csr().enable = 1;
     m33.csr().tickInt = 1;
 
     resets.unreset(Resets::Bit::PADSBANK0);
@@ -70,7 +68,7 @@ using namespace rp2350::sys;
         // delay: 250 * (12k / 12MHz) -> 250ms
         for (unsigned i = 0; i < 250; i++) {
             xosc.count = 12'000;
-            while (xosc.count) { rp2350::sys::nop(); }
+            while (xosc.count) { __nop(); }
         }
         // Toggle the little LED
         sio.gpioOutXor = (1 << 25);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/common.h>
 
 namespace rp2350 {
@@ -152,11 +152,9 @@ struct M33 {
 };
 inline auto& m33 = *(M33*)(0xe0000000);
 
-namespace sys {
 inline void initCPUBasic() {
     m33.ccr().unalignedTrap = true;
     m33.ccr().div0Trap      = true;
 }
-} // namespace sys
 
 } // namespace rp2350

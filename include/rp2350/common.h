@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 
 extern "C" {
 
@@ -17,7 +17,21 @@ extern void* __init_array_end;
 } // extern "C"
 
 namespace rp2350 {
-namespace sys {
+
+// Global config
+constexpr static uint64_t kXOSC = 12'000'000;
+constexpr static uint64_t kSysHz = 126'000'000; // target is 125'875'000
+constexpr static uint64_t kFBDiv = 126;
+constexpr static uint64_t kDiv1 = 4;
+constexpr static uint64_t kDiv2 = 3;
+// Verify
+static_assert(16 <= kFBDiv && kFBDiv <= 320);
+static_assert(1 <= kDiv1 && kDiv1 <= 7);
+static_assert(1 <= kDiv2 && kDiv2 <= kDiv1);
+static_assert(kDiv1 >= kDiv2);
+static_assert(kXOSC * kFBDiv >= 750'000'000);
+static_assert(kXOSC * kFBDiv <= 1600'000'000);
+static_assert(kXOSC * kFBDiv / (kDiv1 * kDiv2) == kSysHz);
 
 // Image definition [IMAGE_DEF]: section 5.9, "Metadata Block Details".
 struct ImageDef {
@@ -26,8 +40,8 @@ struct ImageDef {
     };
 
     template <uint16_t kFlags> struct [[gnu::packed]] ImageType {
-        uint8_t const type   = 0x42; // PICOBIN_BLOCK_ITEM_1BS_IMAGE_TYPE
-        uint8_t const size   = 0x01; //
+        uint8_t const type = 0x42; // PICOBIN_BLOCK_ITEM_1BS_IMAGE_TYPE
+        uint8_t const size = 0x01; //
         uint16_t const flags = kFlags;
     };
 
@@ -35,9 +49,9 @@ struct ImageDef {
     struct [[gnu::packed]] ImageTypeARM : ImageType<0x1021> {};
 
     struct [[gnu::packed]] ItemListEnd {
-        uint8_t sizeType   = 0xff; // BLOCK_ITEM_LAST has a 2-byte size
-        uint16_t totalSize = 1;    // Total of preceding items' sizes (in words)
-        uint8_t _pad       = 0;    //
+        uint8_t sizeType = 0xff; // BLOCK_ITEM_LAST has a 2-byte size
+        uint16_t totalSize = 1;  // Total of preceding items' sizes (in words)
+        uint8_t _pad = 0;        //
     };
 
     struct [[gnu::packed]] End {
@@ -52,8 +66,6 @@ struct [[gnu::packed]] ImageDef2350ARM : ImageDef {
     uint32_t link = 0; // No link since this is only 1 block
     End _end;
 };
-
-} // namespace sys
 
 struct R32 {
     uint32_t& u32() { return *reinterpret_cast<uint32_t*>(this); }
@@ -92,7 +104,7 @@ template <class R> void update(R* reg, auto cb) {
 // 12.6.10. List of Registers
 struct DMA {
     enum class DataSize : unsigned {
-        _8BIT  = 0,
+        _8BIT = 0,
         _16BIT = 1,
         _32BIT = 2,
     };
@@ -121,7 +133,7 @@ struct DMA {
     };
 
     enum class Mode {
-        NORMAL       = 0, // Decrement on each xfer until 0, then trigger CHAIN_TO
+        NORMAL = 0,       // Decrement on each xfer until 0, then trigger CHAIN_TO
         TRIGGER_SELF = 1, // Like NORMAL but trigger self instead
         ENDLESS = 0x0f,   // No decrement, no chain, no IRQ; xfer endlessly until ABORT
     };
@@ -259,5 +271,11 @@ struct HSTX {
     FIFO& fifo() { return *(FIFO*)(0x50600000); }
 };
 inline auto& hstx = *(HSTX*)(0x400c0000);
+
+[[gnu::used]] [[clang::always_inline]] [[noreturn]]
+inline void __abort() {
+    asm volatile(".short 0xde00");
+    __builtin_unreachable();
+}
 
 } // namespace rp2350

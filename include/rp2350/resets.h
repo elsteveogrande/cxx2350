@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/insns.h>
 
 namespace rp2350 {
@@ -85,20 +85,16 @@ struct Resets {
         uint32_t bits = uint32_t(_bit);
         if ((resets & bits) || (resetDone & bits) != bits) {
             resets &= ~bits;
-            if (wait) {
-                while (true) {
-                    auto const done = resetDone;
-                    if ((done & bits) == bits) { break; }
-                    sys::debug() << "unreset: done=" << done << " expect=" << bits;
-                    rp2350::sys::nop();
-                }
-            }
-        };
+            while (wait && ((resetDone & bits) != bits)) { __nop(); }
+        }
     }
+};
+inline auto& resets = *(Resets*)(0x40020000);
 
-    void issueResets() {
-        // Turn reset on for everything except QSPI (since we're running on flash).
-        // clang-format off
+// Put everything except those parts needed for basic operation into reset.
+inline void initResets() {
+    // Turn reset on for everything except QSPI (since we're running on flash).
+    // clang-format off
     constexpr static uint32_t kMask = 0
         | unsigned(Resets::Bit::ADC      )
         | unsigned(Resets::Bit::BUSCTRL  )
@@ -133,13 +129,11 @@ struct Resets {
         // | unsigned(Resets::Bit::SYSINFO   )
         // | unsigned(Resets::Bit::TBMAN     )
     ;
-        // clang-format on
+    // clang-format on
 
-        resets |= kMask;
-        // Some components seem to need a little bit of time before un-reset.
-        for (unsigned i = 0; i < 1000000; i++) { sys::Insns().nop(); }
-    }
-};
-inline auto& resets = *(Resets*)(0x40020000);
+    resets.resets |= kMask;
+    // Some components seem to need a little bit of time before un-reset.
+    for (unsigned i = 0; i < 1000000; i++) { __nop(); }
+}
 
 } // namespace rp2350

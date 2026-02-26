@@ -22,7 +22,9 @@ SECTIONS {
   .vec_table  (0x10000000)  : {} > FLASH
   .image_def  (0x10000200)  : {} > FLASH
 
-  .text                     : {*(.text*)} > FLASH
+  .text                     : {
+    *(.text*)
+  } > FLASH
 
   .init_array               : {
     __init_array_base = .;

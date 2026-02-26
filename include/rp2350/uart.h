@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/common.h>
 #include <rp2350/pads.h>
 #include <rp2350/resets.h>

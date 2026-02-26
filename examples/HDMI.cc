@@ -1,4 +1,4 @@
-#include <cxx20/cxxabi.h>
+#include <platform.h>
 #include <rp2350/clocks.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
@@ -11,36 +11,26 @@
 #include <rp2350/ticks.h>
 #include <rp2350/uart.h>
 
-#include "config.h"
-
-// For 864x480 at appx. 60fps
-static_assert(rp2350::sys::kSysHz == 150'000'000);
-constexpr static unsigned kHActive = 864;
-constexpr static unsigned kVActive = 486;
-constexpr static unsigned kHBlankFront = 36;
-constexpr static unsigned kHBlankSync = 64;
-constexpr static unsigned kHBlankBack = 36;
-constexpr static unsigned kHBlank = kHBlankFront + kHBlankSync + kHBlankBack;
-constexpr static unsigned kVBlankFront = 4;
-constexpr static unsigned kVBlankSync = 6;
-constexpr static unsigned kVBlankBack = 4;
-constexpr static unsigned kVBlank = kVBlankFront + kVBlankSync + kVBlankBack;
-constexpr static unsigned kHTotal = kHActive + kHBlank;
-constexpr static unsigned kVTotal = kVActive + kVBlank;
+// For 640x480 at appx. 60fps
+static_assert(rp2350::sys::kSysHz == 126'000'000);
+constexpr static unsigned kHActive     = 640;
+constexpr static unsigned kVActive     = 480;
+constexpr static unsigned kHBlankFront = 16;
+constexpr static unsigned kHBlankSync  = 96;
+constexpr static unsigned kHBlankBack  = 48;
+constexpr static unsigned kHBlank      = kHBlankFront + kHBlankSync + kHBlankBack;
+constexpr static unsigned kVBlankFront = 11;
+constexpr static unsigned kVBlankSync  = 2;
+constexpr static unsigned kVBlankBack  = 31;
+constexpr static unsigned kVBlank      = kVBlankFront + kVBlankSync + kVBlankBack;
+constexpr static unsigned kHTotal      = kHActive + kHBlank;
+constexpr static unsigned kVTotal      = kVActive + kVBlank;
 
 namespace rp2350::sys {
 
-// Need to define a couple of structures in our main file so that they are baked into
-// the ELF. These two are given `section` attributes so that they can be placed at
-// specific flash addresses (see `layout.ld`).
-
-// Interrupt vectors are needed for the thing to start; this will live at flash address
-// `0x10000000`. It can live in a different address but the default is fine.
 [[gnu::used]] [[gnu::retain]] [[gnu::section(
     ".vec_table")]] ARMVectors const gARMVectors;
 
-// Image definition is required for the RP2 bootloader; this will live at flash address
-// `0x10000100`.
 [[gnu::used]] [[gnu::retain]] [[gnu::section(
     ".image_def")]] constinit ImageDef2350ARM const gImageDef;
 
@@ -58,8 +48,6 @@ struct [[gnu::packed]] TMDS {
     unsigned     : 2;
 
     constexpr uint32_t u32() const {
-        // Avoid reinterpret-cast so we can make this constexpr.
-        // return *(uint32_t const*)(this);
         return (unsigned(ch2) << 20) | (unsigned(ch1) << 10) | (unsigned(ch0) << 0);
     }
 
@@ -117,6 +105,59 @@ struct [[gnu::packed]] Pixel {
     unsigned r : 4 {};
 };
 static_assert(sizeof(Pixel) == 2);
+
+namespace rp2350::sys {
+
+void initCPUBasic() {
+    m33.ccr().unalignedTrap = true;
+    m33.ccr().div0Trap      = true;
+}
+
+void initSystemClock() {
+    xosc.init();
+    sysPLL.init();
+
+    clocks.sys.control = {.source    = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
+                          .auxSource = unsigned(Clocks::Sys::AuxSource::PLL_SYS)};
+    clocks.sys.div     = {.fraction = 0, .integer = 1};
+}
+
+void initRefClock() {
+    clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
+    clocks.ref.div     = {.fraction = 0, .integer = 1};
+}
+
+void initPeriphClock() {
+    clocks.peri.control = {
+        .auxSource = Clocks::Peri::AuxSource::PLL_SYS, .kill = false, .enable = true};
+    clocks.peri.div = {.fraction = 0, .integer = 1};
+}
+
+void initHSTXClock() {
+    update(&clocks.hstx.control, [](auto& _) {
+        _.zero();
+        _->auxSource = Clocks::HSTX::AuxSource::CLK_SYS;
+        _->kill      = false;
+        _->enable    = true;
+    });
+    clocks.hstx.div = {.fraction = 0, .integer = 1};
+}
+
+void initSystemTicks() {
+    // p569: SDK as well as Arm CPU expect nominal 1uS system ticks
+    ticks.proc0.control.enabled = false;
+    ticks.proc0.cycles.count    = 12;
+    ticks.proc0.control.enabled = true;
+    ticks.proc1.control.enabled = false;
+    ticks.proc1.cycles.count    = 12;
+    ticks.proc1.control.enabled = true;
+
+    m33.rvr()         = 1000;
+    m33.csr().enable  = 1;
+    m33.csr().tickInt = 1;
+}
+
+} // namespace rp2350::sys
 
 using namespace rp2350;
 
@@ -183,7 +224,7 @@ struct [[gnu::aligned(4)]] VSyncLine {
 };
 
 struct [[gnu::packed]] [[gnu::aligned(4)]] Pixels {
-    constexpr static Pixel const kDefault {.b = 10, .g = 1, .r = 15};
+    constexpr static Pixel const kDefault {.b = 2, .g = 2, .r = 2};
 
     uint32_t const cmd0_ = (1u << 12) | kHBlankFront; // HSTX_CMD_RAW_REPEAT
     TMDS const frontPorch = TMDS::sync(0, 0);
@@ -194,8 +235,8 @@ struct [[gnu::packed]] [[gnu::aligned(4)]] Pixels {
     uint32_t const cmd_ = (2u << 12) | kHActive; // HSTX_CMD_TMDS
     Pixel pixels[kHActive];                      // packed RGB444 pixels follow
 
-    void clear() {
-        for (auto i = 0u; i < kHActive; i++) { pixels[i] = kDefault; }
+    void clear(Pixel px = kDefault) {
+        for (auto i = 0u; i < kHActive; i++) { pixels[i] = px; }
     }
 
     Buffer buf() const {
@@ -209,6 +250,56 @@ auto& line1 = *(Pixels*)(0x20081000); // Odd lines' pixels
 
 unsigned nextLine = 0;
 unsigned thisFrame = 0;
+
+void issueResets() {
+    // Turn reset on for everything except QSPI (since we're running on flash).
+    // clang-format off
+    constexpr static uint32_t kMask = 0
+        | unsigned(Resets::Bit::ADC      )
+        | unsigned(Resets::Bit::BUSCTRL  )
+        | unsigned(Resets::Bit::DMA      )
+        | unsigned(Resets::Bit::HSTX     )
+        | unsigned(Resets::Bit::I2C0     )
+        | unsigned(Resets::Bit::I2C1     )
+        | unsigned(Resets::Bit::IOBANK0  )
+        | unsigned(Resets::Bit::PADSBANK0)
+        | unsigned(Resets::Bit::PIO0      )
+        | unsigned(Resets::Bit::PIO1      )
+        | unsigned(Resets::Bit::PIO2      )
+        | unsigned(Resets::Bit::PWM       )
+        | unsigned(Resets::Bit::SHA256    )
+        | unsigned(Resets::Bit::SPI0      )
+        | unsigned(Resets::Bit::SPI1      )
+        | unsigned(Resets::Bit::TIMER0    )
+        | unsigned(Resets::Bit::TIMER1    )
+        | unsigned(Resets::Bit::TRNG      )
+        | unsigned(Resets::Bit::UART0     )
+        | unsigned(Resets::Bit::UART1     )
+        | unsigned(Resets::Bit::USBCTRL   )
+        // We won't reset these, they are needed for even minimal operation.
+        // If the application wants to mess with these it still can, but we
+        // won't automatically reset these.
+        // | unsigned(Resets::Bit::IOQSPI    )
+        // | unsigned(Resets::Bit::PADSQSPI  )
+        // | unsigned(Resets::Bit::PLLSYS    )
+        // | unsigned(Resets::Bit::PLLUSB    )
+        // | unsigned(Resets::Bit::JTAG      )
+        // | unsigned(Resets::Bit::SYSCFG    )
+        // | unsigned(Resets::Bit::SYSINFO   )
+        // | unsigned(Resets::Bit::TBMAN     )
+    ;
+    // clang-format on
+
+    resets.resets |= kMask;
+    // Some components seem to need a little bit of time before un-reset.
+    for (unsigned i = 0; i < 1000000; i++) { __nop(); }
+}
+
+void initGPIO() {
+    resets.unreset(Resets::Bit::PADSBANK0, true);
+    resets.unreset(Resets::Bit::IOBANK0, true);
+    initOutput<25>(); // config LED
+}
 
 void initDMA() { resets.unreset(Resets::Bit::DMA, true); }
 
@@ -238,14 +329,14 @@ void configHSTX() {
     // GPIO:        12    13   (gnd)  14    15    16    17   (gnd)  18    19
     // DVI signal:   + CHO -           + CLK -     + CH2 -           + CH1 -
 
-    hstx.bits[0] = {.selectP = 0, .selectN = 1, .invert = 0};
-    hstx.bits[1] = {.selectP = 0, .selectN = 1, .invert = 1};
-    hstx.bits[2] = {.invert = 0, .clock = true};
-    hstx.bits[3] = {.invert = 1, .clock = true};
-    hstx.bits[4] = {.selectP = 20, .selectN = 21, .invert = 0};
-    hstx.bits[5] = {.selectP = 20, .selectN = 21, .invert = 1};
-    hstx.bits[6] = {.selectP = 10, .selectN = 11, .invert = 0};
-    hstx.bits[7] = {.selectP = 10, .selectN = 11, .invert = 1};
+    hstx.bits[0] = {.selectP = 0, .selectN = 1, .invert = 1};
+    hstx.bits[1] = {.selectP = 0, .selectN = 1, .invert = 0};
+    hstx.bits[2] = {.invert = 1, .clock = true};
+    hstx.bits[3] = {.invert = 0, .clock = true};
+    hstx.bits[4] = {.selectP = 20, .selectN = 21, .invert = 1};
+    hstx.bits[5] = {.selectP = 20, .selectN = 21, .invert = 0};
+    hstx.bits[6] = {.selectP = 10, .selectN = 11, .invert = 1};
+    hstx.bits[7] = {.selectP = 10, .selectN = 11, .invert = 0};
 
     hstx.expandShift = {
         .rawShift = 0, .rawNShifts = 1, .encShift = 16, .encNShifts = 2};
@@ -286,7 +377,21 @@ void configBusControl() { rp2350::sys::busControl.priority.dmaRead = 1; }
 constexpr VBlankLine const vblankLine {};
 constexpr VSyncLine const vsyncLine {};
 
-void prepLine(unsigned line) { (void)line; }
+void prepLine(unsigned line, Pixels& pxs) {
+    line += (thisFrame >> 4);
+    auto i = 176u;
+    Pixel px;
+    px.g = (line >> 4) & 0b1111;
+    px.r = line & 0b1111;
+    while (i < 688) {
+        px.b            = ((i & 0b1110) >> 1) << 1;
+        pxs.pixels[i++] = px;
+        pxs.pixels[i++] = px;
+        ++px.b;
+        pxs.pixels[i++] = px;
+        pxs.pixels[i++] = px;
+    }
+}
 
 void prepFrame(unsigned frame) { (void)frame; }
 
@@ -296,7 +401,7 @@ struct Entered final {
     struct RAII final {
         Entered& e;
         RAII(Entered& e) : e(e) {
-            if (e.v) { sys::abort(); }
+            if (e.v) { __abort(); }
             e.v = true;
         }
         ~RAII() { e.v = false; }
@@ -323,14 +428,15 @@ void tx() {
     }
 
     auto& ch = rp2350::dma.channels[dmaChannel];
-    if (ch.ctrl.ahbError) { sys::abort(); }
+    if (ch.ctrl.ahbError) { __abort(); }
 
     // nextLine is the next one to "draw" out; prepare it.
     // Note that (nextLine - 1) is already being sent on the other channel.
     Buffer buf;
     if (nextLine < kVActive) {
-        prepLine(nextLine);
-        buf = ((nextLine & 1) ? line1 : line0).buf();
+        auto& line = (nextLine & 1) ? line1 : line0;
+        prepLine(nextLine, line);
+        buf = line.buf();
     } else if (nextLine < kVActive + kVBlankFront) {
         buf = vblankLine.buf();
     } else if (nextLine < kVActive + kVBlankFront + kVBlankSync) {
@@ -407,14 +513,13 @@ void setupDMAs() {
 
 // // The actual application startup code, called by reset handler
 [[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
-    resets.issueResets();
-    sys::initInterrupts();
-    sys::initCPUBasic();
-    sys::initSystemClock(sys::kFBDiv, sys::kDiv1, sys::kDiv2);
-    sys::initRefClock();
-    sys::initPeriphClock();
-    sys::initSystemTicks();
-    sys::initGPIO();
+    initResets();
+    initInterrupts();
+    initCPUBasic();
+    initSystemClock();
+    initSystemTicks();
+    initRefClock();
+    initPeriphClock();
     initBusControl();
     initDMA();
     initHSTX();
@@ -426,8 +531,46 @@ void setupDMAs() {
     line0.clear();
     line1.clear();
 
-    thisFrame = ~0u;        // will increment to first frame (0)
-    nextLine = kVTotal - 1; // will wrap back to 0, bumping frame
+    // Set up the two DMA channels; initially point them at dummy buffers (blank
+    // lines).
+    auto buf = vblankLine.buf();
+
+    auto& chA = dma.channels[kDMAChannelA];
+    update(&chA.ctrl, [](auto& _) {
+        _.zero();
+        _->chainTo  = kDMAChannelB;
+        _->incrRead = true;
+        _->treqSel  = kHSTXDREQ;
+        _->dataSize = DMA::DataSize::_32BIT;
+        _->enable   = true;
+    });
+    chA.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
+    chA.readAddr   = uintptr_t(buf.words);
+    chA.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
+
+    auto& chB = dma.channels[kDMAChannelB];
+    update(&chB.ctrl, [](auto& _) {
+        _.zero();
+        _->chainTo  = kDMAChannelA;
+        _->incrRead = true;
+        _->treqSel  = kHSTXDREQ;
+        _->dataSize = DMA::DataSize::_32BIT;
+        _->enable   = true;
+    });
+    chB.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
+    chB.readAddr   = uintptr_t(buf.words);
+    chB.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
+
+    auto& irq  = rp2350::dma.irqRegs(0);
+    irq.status = (1u << kDMAChannelA) | (1u << kDMAChannelB); // clear flags
+    irq.enable = (1u << kDMAChannelA) | (1u << kDMAChannelB);
+
+    irqHandlers[kIRQDMA0] = tx;
+    m33.clrPendIRQ(kIRQDMA0);
+    m33.enableIRQ(kIRQDMA0);
+
+    thisFrame = ~0u;         // will increment to first frame (0)
+    nextLine  = kVTotal - 1; // will wrap back to 0, bumping frame
 
     setupDMAs();
     rp2350::dma.multiChanTrigger.channels = 1u << kDMAChannelA;

@@ -1,11 +1,7 @@
 #pragma once
 
-#include <cxx20/cxxabi.h>
-#include <rp2350/common.h>
-#include <rp2350/insns.h>
-#include <rp2350/resets.h>
-
-// Covers a few system-clock-related components: XOSC, PLL, and peripherals' clocks.
+#include <platform.h>
+#include <rp2350/xoscpll.h>
 
 namespace rp2350 {
 
@@ -15,9 +11,9 @@ namespace sys {
 struct XOSC {
     struct Control {
         enum class FreqRange {
-            kFreq1to15   = 0xaa0,
-            kFreq10to30  = 0xaa1,
-            kFreq25to60  = 0xaa2,
+            kFreq1to15 = 0xaa0,
+            kFreq10to30 = 0xaa1,
+            kFreq25to60 = 0xaa2,
             kFreq40to100 = 0xaa3,
         };
         enum class Enable { kDisable = 0xd1e, kEnable = 0xfab };
@@ -39,7 +35,7 @@ struct XOSC {
 
     struct Dormant {
         enum class Code : uint32_t {
-            kWake    = 0x77616b65,
+            kWake = 0x77616b65,
             // WARNING: stop the PLLs & setup the IRQ *before* selecting dormant mode
             kDormant = 0x636f6d61,
         };
@@ -61,10 +57,10 @@ struct XOSC {
 
     void init() {
         control.freqRange = Control::FreqRange::kFreq1to15;
-        startup           = {.delay = 500, .x4 = 1}; // around 40-50ms
-        control.enable    = Control::Enable::kEnable;
-        dormant.code      = Dormant::Code::kWake;
-        while (!(status.stable)) { rp2350::sys::nop(); }
+        startup = {.delay = 500, .x4 = 1}; // around 40-50ms
+        control.enable = Control::Enable::kEnable;
+        dormant.code = Dormant::Code::kWake;
+        while (!(status.stable)) { __nop(); }
     }
 };
 inline auto& xosc = *(XOSC*)(0x40048000);
@@ -113,15 +109,15 @@ struct PLL {
     void init(unsigned fbDiv_, unsigned div1, unsigned div2) {
         resets.reset(Resets::Bit::PLLSYS); // includes powering down
         resets.unreset(Resets::Bit::PLLSYS);
-        cs.bypass       = false;
-        cs.refDiv       = 1;
-        fbDiv           = fbDiv_;
-        powerDown.pd    = false;
+        cs.bypass = false;
+        cs.refDiv = 1;
+        fbDiv = fbDiv_;
+        powerDown.pd = false;
         powerDown.vcoPD = false;
-        while (!cs.lock) { rp2350::sys::nop(); } // wait for LOCK
+        while (!cs.lock) { __nop(); } // wait for LOCK
 
-        prim.postDiv1       = div1;
-        prim.postDiv2       = div2;
+        prim.postDiv1 = div1;
+        prim.postDiv2 = div2;
         powerDown.postdivPD = false;
     }
 };
@@ -141,21 +137,21 @@ struct Clocks {
 
     struct GPOut {
         enum class AuxSource {
-            PLL_SYS              = 0,
-            GPIN0                = 1,
-            GPIN1                = 2,
-            PLL_USB              = 3,
+            PLL_SYS = 0,
+            GPIN0 = 1,
+            GPIN1 = 2,
+            PLL_USB = 3,
             PLL_USB_PRI_REF_OPCG = 4, // ???
-            ROSC                 = 5,
-            XOSC                 = 6,
-            LPOSC                = 7,
-            CLK_SYS              = 8,
-            CLK_USB              = 9,
-            CLK_ADC              = 10,
-            CLK_REF              = 11,
-            CLK_PERI             = 12,
-            CLK_HSTX             = 13,
-            OTP_CLK2FC           = 14,
+            ROSC = 5,
+            XOSC = 6,
+            LPOSC = 7,
+            CLK_SYS = 8,
+            CLK_USB = 9,
+            CLK_ADC = 10,
+            CLK_REF = 11,
+            CLK_PERI = 12,
+            CLK_HSTX = 13,
+            OTP_CLK2FC = 14,
         };
 
         struct Control {
@@ -180,25 +176,25 @@ struct Clocks {
     };
 
     struct Ref {
-        enum class AuxSource : unsigned {
-            PLL_USB              = 0,
-            PLL_GPIN0            = 1,
-            PLL_GPIN1            = 2,
+        enum AuxSource {
+            PLL_USB = 0,
+            PLL_GPIN0 = 1,
+            PLL_GPIN1 = 2,
             PLL_USB_PRI_REF_OPCG = 3,
         };
 
-        enum class Source : unsigned {
-            ROSC_PH     = 0,
+        enum Source {
+            ROSC_PH = 0,
             CLK_REF_AUX = 1,
-            XOSC        = 2,
-            LPOSC       = 3,
+            XOSC = 2,
+            LPOSC = 3,
         };
 
         enum class Selected {
-            ROSC_PH     = 1 << 0,
+            ROSC_PH = 1 << 0,
             CLK_REF_AUX = 1 << 1,
-            XOSC        = 1 << 2,
-            LPOSC       = 1 << 3,
+            XOSC = 1 << 2,
+            LPOSC = 1 << 3,
         };
 
         struct Control {
@@ -215,29 +211,29 @@ struct Clocks {
 
     struct Sys {
         enum class AuxSource : unsigned {
-            PLL_SYS   = 0,
-            PLL_USB   = 1,
-            ROSC      = 2,
-            XOSC      = 3,
+            PLL_SYS = 0,
+            PLL_USB = 1,
+            ROSC = 2,
+            XOSC = 3,
             PLL_GPIN0 = 4,
             PLL_GPIN1 = 5,
         };
 
         enum class Source : unsigned {
-            CLK_REF     = 0,
+            CLK_REF = 0,
             CLK_SYS_AUX = 1,
         };
 
         enum class Selected {
-            CLK_REF     = 1 << 0,
+            CLK_REF = 1 << 0,
             CLK_SYS_AUX = 1 << 1,
         };
 
         struct Control {
-            Source source       : 1;  // 0
-            unsigned            : 4;  // 4..1
-            AuxSource auxSource : 3;  // 7..5
-            unsigned            : 24; // 31..8
+            unsigned source    : 1;  // 0
+            unsigned           : 4;  // 4..1
+            unsigned auxSource : 3;  // 7..5
+            unsigned           : 24; // 31..8
         };
 
         Control control;
@@ -246,14 +242,14 @@ struct Clocks {
     };
 
     struct Peri {
-        enum class AuxSource : unsigned {
+        enum AuxSource {
             CLK_SYS = 0,
             PLL_SYS = 1,
             PLL_USB = 2,
             ROSC_PH = 3,
-            XOSC    = 4,
-            GPIN0   = 5,
-            GPIN1   = 6,
+            XOSC = 4,
+            GPIN0 = 5,
+            GPIN1 = 6,
         };
 
         struct Control {
@@ -277,8 +273,8 @@ struct Clocks {
             CLK_SYS = 0,
             PLL_SYS = 1,
             PLL_USB = 2,
-            GPIN0   = 3,
-            GPIN1   = 4,
+            GPIN0 = 3,
+            GPIN1 = 4,
         };
 
         struct Control {
@@ -306,9 +302,9 @@ struct Clocks {
             PLL_USB = 0,
             PLL_SYS = 1,
             ROSC_PH = 2,
-            XOSC    = 3,
-            GPIN0   = 4,
-            GPIN1   = 5,
+            XOSC = 3,
+            GPIN0 = 4,
+            GPIN1 = 5,
         };
         // TODO
     };
@@ -318,9 +314,9 @@ struct Clocks {
             PLL_USB = 0,
             PLL_SYS = 1,
             ROSC_PH = 2,
-            XOSC    = 3,
-            GPIN0   = 4,
-            GPIN1   = 5,
+            XOSC = 3,
+            GPIN0 = 4,
+            GPIN1 = 5,
         };
         // TODO
     };
@@ -337,19 +333,18 @@ struct Clocks {
 };
 inline auto& clocks = *(Clocks*)(0x40010000);
 
-namespace sys {
-inline void initSystemClock(unsigned fbDiv, unsigned div1, unsigned div2) {
-    sys::xosc.init();
-    sys::sysPLL.init(fbDiv, div1, div2);
+inline void initSystemClock() {
+    xosc.init();
+    sysPLL.init();
 
-    clocks.sys.control = {.source    = Clocks::Sys::Source::CLK_SYS_AUX,
-                          .auxSource = Clocks::Sys::AuxSource::PLL_SYS};
-    clocks.sys.div     = {.fraction = 0, .integer = 1};
+    clocks.sys.control = {.source = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
+                          .auxSource = unsigned(Clocks::Sys::AuxSource::PLL_SYS)};
+    clocks.sys.div = {.fraction = 0, .integer = 1};
 }
 
 inline void initRefClock() {
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
-    clocks.ref.div     = {.fraction = 0, .integer = 1};
+    clocks.ref.div = {.fraction = 0, .integer = 1};
 }
 
 inline void initPeriphClock() {
@@ -362,11 +357,10 @@ inline void initHSTXClock() {
     update(&clocks.hstx.control, [](auto& _) {
         _.zero();
         _->auxSource = Clocks::HSTX::AuxSource::CLK_SYS;
-        _->kill      = false;
-        _->enable    = true;
+        _->kill = false;
+        _->enable = true;
     });
     clocks.hstx.div = {.fraction = 0, .integer = 1};
 }
-} // namespace sys
 
 } // namespace rp2350

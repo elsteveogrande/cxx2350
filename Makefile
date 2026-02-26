@@ -1,6 +1,6 @@
 CXX=clang++
 OPENOCD=openocd
-EXAMPLE=HDMI
+EXAMPLE=ychdmi2354
 
 all: build/examples/$(EXAMPLE).elf
 
@@ -49,14 +49,20 @@ gdb: build/examples/$(EXAMPLE).elf
 		-ex "b dval" \
 
 dump: build/examples/$(EXAMPLE).elf
-	llvm-readelf --all $<
-	llvm-objdump -ds --debug-file-directory=/foo $<
+	llvm-objdump -f --headers $<
+	llvm-nm --demangle $< | sort -nk1
+	llvm-objdump                    \
+		-s                            \
+		--section=.bootv              \
+		--section=.init_array         \
+		--section=.rodata             \
+		--section=.data               \
+		$<
+	llvm-objdump -d --demangle --source --section=.text $<
 
 # Examples
 
-examples: build/examples/HDMI.elf build/examples/Blink.elf build/examples/UARTHello.elf
-
-build/examples/%.elf: build/examples/%.cc.o layout.ld build/librp2350.a link_flags.txt
+build/examples/%.elf: build/examples/%.cc.o layout.ld build/librp2350.a examples/link_flags.txt
 	mkdir -p build build/examples
 	$(CXX) @link_flags.txt -o $@ $<
 
@@ -64,8 +70,8 @@ build/examples/%.cc.o: examples/%.cc include/**/* compile_flags.txt
 	mkdir -p build build/examples
 	$(CXX) @compile_flags.txt -I.. -o $@ -c $<
 
-misc/testpattern.800.480.png: misc/testpattern.svg
-	rsvg-convert -f png --width 800 --height 480 -o $@ $<
+misc/testpattern.864.486.png: misc/testpattern.svg
+	rsvg-convert -f png --width 864 --height 486 -o $@ $<
 
 misc/testpattern.svg: misc/testpattern.PM5644.svg
 	cat $< \
