@@ -3,6 +3,7 @@
 -target
 thumbv8m.main-none-eabi
 -mcpu=cortex-m33
+-mcpu=cortex-m0plus
 -mthumb
 -Wall
 -Wextra
@@ -40,7 +41,7 @@ thumbv8m.main-none-eabi
 -fsave-optimization-record
 -mllvm
 -inline-threshold=3
--fno-sanitize=undefined
--fno-sanitize-trap=all
+-fsanitize=undefined
+-fsanitize-trap=all
 -fdata-sections
 -ffunction-sections

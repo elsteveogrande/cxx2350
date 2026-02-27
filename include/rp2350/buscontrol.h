@@ -22,6 +22,7 @@ struct BusControl {
 };
 inline auto& busControl = *(BusControl*)(0x40068000);
 
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[gnu::section(".systext")]]
 inline void initBusControl(bool prioritizeDMA = true) {
     resets.unreset(Resets::Bit::BUSCTRL, true);
     busControl.priority.dmaRead = prioritizeDMA;

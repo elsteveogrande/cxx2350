@@ -106,7 +106,6 @@ struct PLL {
 
     // Section 8.6, PLL, p583 describes the `pll_init` process
     void init() {
-        resets.reset(Resets::Bit::PLLSYS); // includes powering down
         resets.unreset(Resets::Bit::PLLSYS);
         cs.bypass = false;
         cs.refDiv = 1;
@@ -121,14 +120,5 @@ struct PLL {
     }
 };
 inline auto& sysPLL = *(PLL*)(0x40050000);
-
-inline void delay1() {
-    xosc.count = kXOSC / 1000;
-    while (xosc.count) { __nop(); }
-}
-
-inline void delay(unsigned ms) {
-    while (ms--) { delay1(); }
-}
 
 } // namespace rp2350

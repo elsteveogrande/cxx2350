@@ -2,7 +2,9 @@
 #include <rp2350/buscontrol.h>
 #include <rp2350/clocks.h>
 #include <rp2350/common.h>
+#include <rp2350/dma.h>
 #include <rp2350/gpio.h>
+#include <rp2350/hstx.h>
 #include <rp2350/insns.h>
 #include <rp2350/interrupts.h>
 #include <rp2350/m33.h>
@@ -15,28 +17,10 @@
 
 using namespace rp2350;
 
-void initGPIO() {
-    resets.unreset(Resets::Bit::PADSBANK0, true);
-    resets.unreset(Resets::Bit::IOBANK0, true);
-    initOutput<25>(); // config LED
-}
+[[gnu::retain]] [[gnu::used]] [[gnu::section(
+    ".image_def")]] constinit ImageDef2350ARM const gImageDef;
 
-void initDMA() { resets.unreset(Resets::Bit::DMA, true); }
-
-void initHSTX() {
-    initHSTXClock();
-    resets.unreset(Resets::Bit::HSTX, true);
-    initOutput<12>(GPIO::FuncSel<12>::HSTX);
-    initOutput<13>(GPIO::FuncSel<13>::HSTX);
-    initOutput<14>(GPIO::FuncSel<14>::HSTX);
-    initOutput<15>(GPIO::FuncSel<15>::HSTX);
-    initOutput<16>(GPIO::FuncSel<16>::HSTX);
-    initOutput<17>(GPIO::FuncSel<17>::HSTX);
-    initOutput<18>(GPIO::FuncSel<18>::HSTX);
-    initOutput<19>(GPIO::FuncSel<19>::HSTX);
-}
-
-void configHSTX() {
+inline void configHSTX() {
     // See: p.1206: "As a final, concrete example, take TMDS (used in DVI): ..."
     // and: p.1207: "For double-data-rate data, with active rising and active
     // falling
@@ -95,7 +79,7 @@ struct SWD {
     }
 };
 
-[[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
+[[gnu::retain]] [[gnu::used]] [[gnu::noreturn]] [[gnu::noinline]] void __start() {
     initResets();
     initInterrupts();
     initCPUBasic();
@@ -107,11 +91,14 @@ struct SWD {
     initBusControl();
     initDMA();
     initHSTX();
+
     configHSTX();
 
     // TODO
-    DAP dap(42, 43, 0x01abcdef);
-    SWD swd(dap);
+    // DAP dap(42, 43, 0x01abcdef);
+    // SWD swd(dap);
 
-    __builtin_trap();
+    while (true) { sio.gpioOutXor = 1u << 25; }
+
+    __unreachable();
 }

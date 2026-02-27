@@ -2,11 +2,11 @@
 
 #pragma once
 
-using int8_t   = char;
-using int16_t  = short;
-using int32_t  = long;
-using int64_t  = long long;
-using uint8_t  = unsigned char;
+using int8_t = char;
+using int16_t = short;
+using int32_t = long;
+using int64_t = long long;
+using uint8_t = unsigned char;
 using uint16_t = unsigned short;
 using uint32_t = unsigned long;
 using uint64_t = unsigned long long;
@@ -19,13 +19,13 @@ static_assert(sizeof(uint16_t) == 2);
 static_assert(sizeof(uint32_t) == 4);
 static_assert(sizeof(uint64_t) == 8);
 
-using intptr_t  = int32_t;
+using intptr_t = int32_t;
 using uintptr_t = uint32_t;
 
 using size_t = uint32_t;
 static_assert(sizeof(size_t) == sizeof(void*));
 
-using ssize_t   = int32_t;
+using ssize_t = int32_t;
 using ptrdiff_t = int32_t;
 
 typedef void (*vfunc)();
@@ -33,17 +33,24 @@ typedef void (*vfunc)();
 void* operator new(unsigned, void* ptr) noexcept;
 
 extern "C" {
+
 void __cxa_pure_virtual();
 void __cxa_deleted_virtual();
+
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[noreturn]]
+inline void __abort() {
+    __builtin_trap();
 }
 
-namespace __cxxabiv1 {} // namespace __cxxabiv1
-
-extern "C" {
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[noreturn]]
+inline void __unreachable() {
+    __builtin_unreachable(); // should trap
+    __builtin_trap();        // (just in case)
+}
 
 // C/C++ ABI-specified functions
 
-[[gnu::used]] [[gnu::retain]]
+[[gnu::retain]] [[gnu::used]]
 inline void __aeabi_memcpy(uint8_t* dest, uint8_t const* src, uint32_t n) {
     for (uint32_t i = 0; i < n; i++) {
         // Read from source and write into dest; the do-nothing `asm volatile`
@@ -52,11 +59,11 @@ inline void __aeabi_memcpy(uint8_t* dest, uint8_t const* src, uint32_t n) {
         // thing we're trying to define.
         uint8_t x = src[i];
         // asm volatile("");  // XXX actually needed??
-        dest[i]   = x;
+        dest[i] = x;
     }
 }
 
-[[gnu::used]] [[gnu::retain]]
+[[gnu::retain]] [[gnu::used]]
 inline void __aeabi_memcpy4(uint8_t* dest, uint8_t const* src, unsigned n) {
     __aeabi_memcpy(dest, src, n);
 }
@@ -70,24 +77,26 @@ inline void* memcpy(void* dst_, void const* src_, size_t n) {
 
 inline void* memset(void* dst_, int c_, size_t len) {
     auto* dst = reinterpret_cast<char*>(dst_);
-    auto c    = char(c_);
+    auto c = char(c_);
     for (size_t i = 0; i < len; i++) { dst[i] = c; }
     return dst_;
 }
 
-[[gnu::used]] [[gnu::retain]]
+[[gnu::retain]] [[gnu::used]]
 inline void __aeabi_memclr(void* dest, size_t n) {
     memset(dest, 0, n);
 }
 
-[[gnu::used]] [[gnu::retain]]
+[[gnu::retain]] [[gnu::used]]
 inline void __aeabi_memclr4(void* dest, size_t n) {
     memset(dest, 0, n);
 }
 
-[[gnu::used]] [[gnu::retain]]
+[[gnu::retain]] [[gnu::used]]
 inline void __aeabi_memclr8(void* dest, size_t n) {
     memset(dest, 0, n);
 }
 
 } // extern "C" ends
+
+namespace __cxxabiv1 {} // namespace __cxxabiv1

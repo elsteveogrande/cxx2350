@@ -30,12 +30,12 @@ struct GPIO {
     };
 
     enum class Override : unsigned {
-        kNormal  = 0,
-        kInvert  = 1,
-        kLow     = 2,
+        kNormal = 0,
+        kInvert = 1,
+        kLow = 2,
         kDisable = 2,
-        kHigh    = 3,
-        kEnable  = 3,
+        kHigh = 3,
+        kEnable = 3,
     };
 
     // 9.4. Function Select; note that the correct funcsel depends on the GPIO number
@@ -133,28 +133,28 @@ struct SIO : R32 {
     // 0x100 - 0x17c , SPINLOCKn
     // lots more
 };
-inline auto& sio = *(SIO*)(0xd0000000);
+inline auto& sio = *(SIO volatile*)(0xd0000000);
 
 template <uint8_t I> void initOutput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
     gpio[I].control.funcSel = funcSel;
-    sio.gpioOutEnbSet       = (1 << I);
-    sio.gpioOutClr          = (1 << I);
+    sio.gpioOutEnbSet = (1 << I);
+    sio.gpioOutClr = (1 << I);
 
     {
         Update u {&gpio[I].control};
         u->funcSel = funcSel;
-        u->inOver  = GPIO::Override::kNormal;
+        u->inOver = GPIO::Override::kNormal;
         u->irqOver = GPIO::Override::kNormal;
         u->outOver = GPIO::Override::kNormal;
-        u->oeOver  = GPIO::Override::kNormal;
+        u->oeOver = GPIO::Override::kNormal;
     }
 
     {
         Update u {&padsBank0.gpio[I]};
-        u->drive         = PadsBank0::Drive::k12mA;
-        u->inputEnable   = false;
+        u->drive = PadsBank0::Drive::k12mA;
+        u->inputEnable = false;
         u->outputDisable = false;
-        u->isolation     = false;
+        u->isolation = false;
     }
 }
 
@@ -164,30 +164,29 @@ template <uint8_t I> void initInput(unsigned funcSel = GPIO::FuncSel<I>::SIO) {
     {
         Update u {&gpio[I].control};
         u->funcSel = funcSel;
-        u->inOver  = GPIO::Override::kNormal;
+        u->inOver = GPIO::Override::kNormal;
         u->irqOver = GPIO::Override::kNormal;
         u->outOver = GPIO::Override::kNormal;
-        u->oeOver  = GPIO::Override::kNormal;
+        u->oeOver = GPIO::Override::kNormal;
     }
 
     {
         Update u {&padsBank0.gpio[I]};
-        u->slewFast      = true;
-        u->schmitt       = false;
-        u->inputEnable   = true;
+        u->slewFast = true;
+        u->schmitt = false;
+        u->inputEnable = true;
         u->outputDisable = true;
-        u->pullDown      = false;
-        u->pullUp        = false;
-        u->isolation     = false;
+        u->pullDown = false;
+        u->pullUp = false;
+        u->isolation = false;
     }
 }
 
-namespace sys {
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[gnu::section(".systext")]]
 inline void initGPIO() {
     resets.unreset(Resets::Bit::PADSBANK0, true);
     resets.unreset(Resets::Bit::IOBANK0, true);
     initOutput<25>(); // config LED
 }
-} // namespace sys
 
 } // namespace rp2350

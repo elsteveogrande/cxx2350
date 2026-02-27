@@ -153,11 +153,11 @@ template <unsigned U> struct UART {
         // PDF p973 or:
         // https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/hardware_uart/uart.c#L155-L180
         // or: https://developer.arm.com/documentation/ddi0183/latest/
-        uint32_t div   = ((8 * sysHz) / baud) + 1;
-        uint32_t dint  = div >> 7;
+        uint32_t div = ((8 * sysHz) / baud) + 1;
+        uint32_t dint = div >> 7;
         uint32_t dfrac = (div & 0x7f) >> 1;
-        intBaud.div    = dint;
-        fracBaud.div   = dfrac;
+        intBaud.div = dint;
+        fracBaud.div = dfrac;
         // These control register writes also latch the divisors set above
         update(&lineControl, [&](auto& _) {
             _.zero();
@@ -166,7 +166,7 @@ template <unsigned U> struct UART {
         });
         update(&control, [](auto& _) {
             _.zero();
-            _->enable   = true;
+            _->enable = true;
             _->txEnable = true;
             _->rxEnable = true;
         });
@@ -192,7 +192,7 @@ template <unsigned U> struct UART {
         switch (U) {
         case 0: return 33;
         case 1: return 34;
-        default: __builtin_unreachable();
+        default: __unreachable();
         }
     }
 };

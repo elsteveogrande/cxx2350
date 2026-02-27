@@ -5,126 +5,6 @@
 
 namespace rp2350 {
 
-namespace sys {
-
-// Section 8.2, Crystal Oscillator (XOSC)
-struct XOSC {
-    struct Control {
-        enum class FreqRange {
-            kFreq1to15 = 0xaa0,
-            kFreq10to30 = 0xaa1,
-            kFreq25to60 = 0xaa2,
-            kFreq40to100 = 0xaa3,
-        };
-        enum class Enable { kDisable = 0xd1e, kEnable = 0xfab };
-
-        FreqRange freqRange : 12; // 11..0
-        Enable enable       : 12; // 23..12
-        unsigned            : 8;
-    };
-
-    struct Status {
-        unsigned freqRange : 2; // 1..0
-        unsigned           : 10;
-        unsigned enabled   : 1; // 12
-        unsigned           : 11;
-        unsigned badWrite  : 1; // 24
-        unsigned           : 6;
-        unsigned stable    : 1; // 31
-    };
-
-    struct Dormant {
-        enum class Code : uint32_t {
-            kWake = 0x77616b65,
-            // WARNING: stop the PLLs & setup the IRQ *before* selecting dormant mode
-            kDormant = 0x636f6d61,
-        };
-        Code code;
-    };
-
-    struct Startup {
-        unsigned delay : 14; // 13..0
-        unsigned       : 6;
-        unsigned x4    : 1; // 20
-        unsigned       : 11;
-    };
-
-    Control control;
-    Status status;
-    Dormant dormant;
-    Startup startup;
-    uint32_t count;
-
-    void init() {
-        control.freqRange = Control::FreqRange::kFreq1to15;
-        startup = {.delay = 500, .x4 = 1}; // around 40-50ms
-        control.enable = Control::Enable::kEnable;
-        dormant.code = Dormant::Code::kWake;
-        while (!(status.stable)) { __nop(); }
-    }
-};
-inline auto& xosc = *(XOSC*)(0x40048000);
-
-// Section 8.6, PLL
-struct PLL {
-    struct ControlStat {
-        unsigned refDiv : 6; // 5..0
-        unsigned        : 2;
-        unsigned bypass : 1;  // 8
-        unsigned        : 21; //
-        unsigned lockN  : 1;  // 30
-        unsigned lock   : 1;  // 31
-    };
-
-    struct PowerDown {
-        unsigned pd        : 1; // 0
-        unsigned           : 1;
-        unsigned dsmPD     : 1; // 2
-        unsigned postdivPD : 1; // 3
-        unsigned           : 1;
-        unsigned vcoPD     : 1; // 5
-        unsigned           : 26;
-    };
-
-    // "Controls the PLL post dividers for the primary output
-    // (note: this PLL does not have a secondary output)"
-    struct Primary {
-        unsigned          : 12;
-        unsigned postDiv2 : 3; // 14..12
-        unsigned          : 1;
-        unsigned postDiv1 : 3; // 18..16
-        unsigned          : 12;
-    };
-
-    ControlStat cs;
-    PowerDown powerDown;
-    uint32_t fbDiv;
-    Primary prim;
-    uint32_t intr; // TODO
-    uint32_t inte; // TODO
-    uint32_t intf; // TODO
-    uint32_t ints; // TODO
-
-    // Section 8.6, PLL, p583 describes the `pll_init` process
-    void init(unsigned fbDiv_, unsigned div1, unsigned div2) {
-        resets.reset(Resets::Bit::PLLSYS); // includes powering down
-        resets.unreset(Resets::Bit::PLLSYS);
-        cs.bypass = false;
-        cs.refDiv = 1;
-        fbDiv = fbDiv_;
-        powerDown.pd = false;
-        powerDown.vcoPD = false;
-        while (!cs.lock) { __nop(); } // wait for LOCK
-
-        prim.postDiv1 = div1;
-        prim.postDiv2 = div2;
-        powerDown.postdivPD = false;
-    }
-};
-inline auto& sysPLL = *(PLL*)(0x40050000);
-
-} // namespace sys
-
 // Chapter 8, Clocks
 // https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf
 // see: p524 (8.1.6.1) Configuring
@@ -333,6 +213,7 @@ struct Clocks {
 };
 inline auto& clocks = *(Clocks*)(0x40010000);
 
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[gnu::section(".systext")]]
 inline void initSystemClock() {
     xosc.init();
     sysPLL.init();
@@ -342,17 +223,20 @@ inline void initSystemClock() {
     clocks.sys.div = {.fraction = 0, .integer = 1};
 }
 
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[gnu::section(".systext")]]
 inline void initRefClock() {
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
     clocks.ref.div = {.fraction = 0, .integer = 1};
 }
 
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[gnu::section(".systext")]]
 inline void initPeriphClock() {
     clocks.peri.control = {
         .auxSource = Clocks::Peri::AuxSource::PLL_SYS, .kill = false, .enable = true};
     clocks.peri.div = {.fraction = 0, .integer = 1};
 }
 
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[gnu::section(".systext")]]
 inline void initHSTXClock() {
     update(&clocks.hstx.control, [](auto& _) {
         _.zero();

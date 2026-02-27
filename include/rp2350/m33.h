@@ -152,9 +152,10 @@ struct M33 {
 };
 inline auto& m33 = *(M33*)(0xe0000000);
 
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[gnu::section(".systext")]]
 inline void initCPUBasic() {
     m33.ccr().unalignedTrap = true;
-    m33.ccr().div0Trap      = true;
+    m33.ccr().div0Trap = true;
 }
 
 } // namespace rp2350

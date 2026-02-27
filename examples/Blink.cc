@@ -18,12 +18,12 @@ namespace rp2350 {
 
 // Interrupt vectors are needed for the thing to start; this will live at flash address
 // `0x10000000`. It can live in a different address but the default is fine.
-[[gnu::used]] [[gnu::retain]] [[gnu::section(
+[[gnu::retain]] [[gnu::used]] [[gnu::section(
     ".vec_table")]] ARMVectors const gARMVectors;
 
 // Image definition is required for the RP2 bootloader; this will live at flash address
 // `0x10000100`.
-[[gnu::used]] [[gnu::retain]] [[gnu::section(
+[[gnu::retain]] [[gnu::used]] [[gnu::section(
     ".image_def")]] constinit ImageDef2350ARM const gImageDef;
 
 } // namespace rp2350
@@ -31,7 +31,7 @@ namespace rp2350 {
 using namespace rp2350;
 
 // The actual application startup code, called by reset handler
-[[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
+[[gnu::retain]] [[gnu::used]] [[gnu::noreturn]] [[gnu::noinline]] void __start() {
     xosc.init();
     sys::sysPLL.init(kFBDiv, kDiv1, kDiv2);
 

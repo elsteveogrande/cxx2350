@@ -4,14 +4,14 @@ EXAMPLE=ychdmi2354
 
 all: build/examples/$(EXAMPLE).elf
 
-# Eventually, drop the .a and .s.o rules
+.PRECIOUS: build/examples/$(EXAMPLE).cc.o
 
-build/librp2350.a: build/interrupts.s.o
-	ar -r $@ $<
+build/examples/%.elf: build/examples/%.cc.o link_flags.txt layout.ld
+	$(CXX) @link_flags.txt -o $@ $<
 
-build/%.s.o: include/rp2350/asm/%.s
-	mkdir -p build build/examples
-	$(CXX) @compile_flags.txt -xassembler -c -o $@ $<
+build/examples/%.cc.o: examples/%.cc include/**/* compile_flags.txt
+	mkdir -p build/examples
+	$(CXX) @compile_flags.txt -I.. -o $@ -c $<
 
 clean:
 	rm -rf build/
@@ -45,44 +45,18 @@ lldb: build/examples/$(EXAMPLE).elf
 gdb: build/examples/$(EXAMPLE).elf
 	gdb $< \
 		-ex "target extended-remote localhost:3333" \
-		-ex "b hardFault" \
-		-ex "b dval" \
+		-ex "hb rp2350::hardFault" \
+		-ex "hb __start" \
 
 dump: build/examples/$(EXAMPLE).elf
 	llvm-objdump -f --headers $<
-	llvm-nm --demangle $< | sort -nk1
+	llvm-nm --demangle $< | sort
 	llvm-objdump                    \
 		-s                            \
 		--section=.bootv              \
+		--section=.image_def          \
 		--section=.init_array         \
 		--section=.rodata             \
 		--section=.data               \
 		$<
 	llvm-objdump -d --demangle --source --section=.text $<
-
-# Examples
-
-build/examples/%.elf: build/examples/%.cc.o layout.ld build/librp2350.a examples/link_flags.txt
-	mkdir -p build build/examples
-	$(CXX) @link_flags.txt -o $@ $<
-
-build/examples/%.cc.o: examples/%.cc include/**/* compile_flags.txt
-	mkdir -p build build/examples
-	$(CXX) @compile_flags.txt -I.. -o $@ -c $<
-
-misc/testpattern.864.486.png: misc/testpattern.svg
-	rsvg-convert -f png --width 864 --height 486 -o $@ $<
-
-misc/testpattern.svg: misc/testpattern.PM5644.svg
-	cat $< \
-		| sed 's/#0000bf/#0000f4/gi' \
-		| sed 's/#00bf00/#00f400/gi' \
-		| sed 's/#00bfbf/#00f4f4/gi' \
-		| sed 's/#bf0000/#f40000/gi' \
-		| sed 's/#bf00bf/#f400f4/gi' \
-		| sed 's/#bfbf00/#f4f400/gi' \
-		| sed 's/#bfbfbf/#f4f4f4/gi' \
-		> $@
-
-misc/testpattern.PM5644.svg:
-	curl -sf https://upload.wikimedia.org/wikipedia/commons/c/c1/PM5644.svg > $@

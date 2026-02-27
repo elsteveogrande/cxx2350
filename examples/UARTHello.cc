@@ -19,12 +19,12 @@ namespace rp2350::sys {
 
 // Interrupt vectors are needed for the thing to start; this will live at flash address
 // `0x10000000`. It can live in a different address but the default is fine.
-[[gnu::used]] [[gnu::retain]] [[gnu::section(
+[[gnu::retain]] [[gnu::used]] [[gnu::section(
     ".vec_table")]] ARMVectors const gARMVectors;
 
 // Image definition is required for the RP2 bootloader; this will live at flash address
 // `0x10000100`.
-[[gnu::used]] [[gnu::retain]] [[gnu::section(
+[[gnu::retain]] [[gnu::used]] [[gnu::section(
     ".image_def")]] constinit ImageDef2350ARM const gImageDef;
 
 } // namespace rp2350::sys
@@ -43,13 +43,13 @@ template <uint16_t N> struct Buffer {
     void push(uint8_t x) {
         while (full()) { sys::debug() << "push:full"; }
         buf[tail] = x;
-        tail      = (tail + 1) % N;
+        tail = (tail + 1) % N;
     }
 
     uint8_t pop() {
         uint8_t ret = 0xff;
         while (empty()) { sys::debug() << "pop:empty"; }
-        ret  = buf[head];
+        ret = buf[head];
         head = (head + 1) % N;
         return ret;
     }
@@ -91,32 +91,32 @@ void uart0IRQ() {
 }
 
 // The actual application startup code, called by reset handler
-[[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
+[[gnu::retain]] [[gnu::used]] [[gnu::noreturn]] [[gnu::noinline]] void __start() {
     initInterrupts();
     xosc.init();
     sysPLL.init();
 
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
-    clocks.ref.div     = {.fraction = 0, .integer = 1};
+    clocks.ref.div = {.fraction = 0, .integer = 1};
 
-    clocks.sys.control = {.source    = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
+    clocks.sys.control = {.source = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
                           .auxSource = unsigned(Clocks::Sys::AuxSource::PLL_SYS)};
-    clocks.sys.div     = {.fraction = 0, .integer = 1};
+    clocks.sys.div = {.fraction = 0, .integer = 1};
 
     // p569: SDK expects nominal 1uS system ticks, as does Arm internals.
     // Although we don't use the SDK we'll assume 1uS everywhere as well.
     ticks.proc0.control.enabled = false; // disable while configuring
-    ticks.proc0.cycles.count    = 12;
+    ticks.proc0.cycles.count = 12;
     ticks.proc0.control.enabled = true;
     ticks.proc1.control.enabled = false; // disable while configuring
-    ticks.proc1.cycles.count    = 12;
+    ticks.proc1.cycles.count = 12;
     ticks.proc1.control.enabled = true;
 
     m33.ccr().unalignedTrap = true;
-    m33.ccr().div0Trap      = true;
+    m33.ccr().div0Trap = true;
 
-    m33.rvr()         = 1000;
-    m33.csr().enable  = 1;
+    m33.rvr() = 1000;
+    m33.csr().enable = 1;
     m33.csr().tickInt = 1;
 
     resets.unreset(Resets::Bit::PADSBANK0);

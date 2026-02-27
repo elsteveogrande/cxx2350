@@ -12,26 +12,26 @@
 #include <rp2350/uart.h>
 
 // For 640x480 at appx. 60fps
-static_assert(rp2350::sys::kSysHz == 126'000'000);
-constexpr static unsigned kHActive     = 640;
-constexpr static unsigned kVActive     = 480;
+static_assert(rp2350::kSysHz == 126'000'000);
+constexpr static unsigned kHActive = 640;
+constexpr static unsigned kVActive = 480;
 constexpr static unsigned kHBlankFront = 16;
-constexpr static unsigned kHBlankSync  = 96;
-constexpr static unsigned kHBlankBack  = 48;
-constexpr static unsigned kHBlank      = kHBlankFront + kHBlankSync + kHBlankBack;
+constexpr static unsigned kHBlankSync = 96;
+constexpr static unsigned kHBlankBack = 48;
+constexpr static unsigned kHBlank = kHBlankFront + kHBlankSync + kHBlankBack;
 constexpr static unsigned kVBlankFront = 11;
-constexpr static unsigned kVBlankSync  = 2;
-constexpr static unsigned kVBlankBack  = 31;
-constexpr static unsigned kVBlank      = kVBlankFront + kVBlankSync + kVBlankBack;
-constexpr static unsigned kHTotal      = kHActive + kHBlank;
-constexpr static unsigned kVTotal      = kVActive + kVBlank;
+constexpr static unsigned kVBlankSync = 2;
+constexpr static unsigned kVBlankBack = 31;
+constexpr static unsigned kVBlank = kVBlankFront + kVBlankSync + kVBlankBack;
+constexpr static unsigned kHTotal = kHActive + kHBlank;
+constexpr static unsigned kVTotal = kVActive + kVBlank;
 
 namespace rp2350::sys {
 
-[[gnu::used]] [[gnu::retain]] [[gnu::section(
+[[gnu::retain]] [[gnu::used]] [[gnu::section(
     ".vec_table")]] ARMVectors const gARMVectors;
 
-[[gnu::used]] [[gnu::retain]] [[gnu::section(
+[[gnu::retain]] [[gnu::used]] [[gnu::section(
     ".image_def")]] constinit ImageDef2350ARM const gImageDef;
 
 } // namespace rp2350::sys
@@ -110,21 +110,21 @@ namespace rp2350::sys {
 
 void initCPUBasic() {
     m33.ccr().unalignedTrap = true;
-    m33.ccr().div0Trap      = true;
+    m33.ccr().div0Trap = true;
 }
 
 void initSystemClock() {
     xosc.init();
     sysPLL.init();
 
-    clocks.sys.control = {.source    = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
+    clocks.sys.control = {.source = unsigned(Clocks::Sys::Source::CLK_SYS_AUX),
                           .auxSource = unsigned(Clocks::Sys::AuxSource::PLL_SYS)};
-    clocks.sys.div     = {.fraction = 0, .integer = 1};
+    clocks.sys.div = {.fraction = 0, .integer = 1};
 }
 
 void initRefClock() {
     clocks.ref.control = {.source = Clocks::Ref::Source::XOSC, .auxSource = {}};
-    clocks.ref.div     = {.fraction = 0, .integer = 1};
+    clocks.ref.div = {.fraction = 0, .integer = 1};
 }
 
 void initPeriphClock() {
@@ -137,8 +137,8 @@ void initHSTXClock() {
     update(&clocks.hstx.control, [](auto& _) {
         _.zero();
         _->auxSource = Clocks::HSTX::AuxSource::CLK_SYS;
-        _->kill      = false;
-        _->enable    = true;
+        _->kill = false;
+        _->enable = true;
     });
     clocks.hstx.div = {.fraction = 0, .integer = 1};
 }
@@ -146,14 +146,14 @@ void initHSTXClock() {
 void initSystemTicks() {
     // p569: SDK as well as Arm CPU expect nominal 1uS system ticks
     ticks.proc0.control.enabled = false;
-    ticks.proc0.cycles.count    = 12;
+    ticks.proc0.cycles.count = 12;
     ticks.proc0.control.enabled = true;
     ticks.proc1.control.enabled = false;
-    ticks.proc1.cycles.count    = 12;
+    ticks.proc1.cycles.count = 12;
     ticks.proc1.control.enabled = true;
 
-    m33.rvr()         = 1000;
-    m33.csr().enable  = 1;
+    m33.rvr() = 1000;
+    m33.csr().enable = 1;
     m33.csr().tickInt = 1;
 }
 
@@ -372,7 +372,7 @@ inline auto& busControl = *(BusControl*)(0x40068000);
 
 void initBusControl() { resets.unreset(Resets::Bit::BUSCTRL, true); }
 
-void configBusControl() { rp2350::sys::busControl.priority.dmaRead = 1; }
+void configBusControl() { rp2350::busControl.priority.dmaRead = 1; }
 
 constexpr VBlankLine const vblankLine {};
 constexpr VSyncLine const vsyncLine {};
@@ -384,7 +384,7 @@ void prepLine(unsigned line, Pixels& pxs) {
     px.g = (line >> 4) & 0b1111;
     px.r = line & 0b1111;
     while (i < 688) {
-        px.b            = ((i & 0b1110) >> 1) << 1;
+        px.b = ((i & 0b1110) >> 1) << 1;
         pxs.pixels[i++] = px;
         pxs.pixels[i++] = px;
         ++px.b;
@@ -512,7 +512,7 @@ void setupDMAs() {
 }
 
 // // The actual application startup code, called by reset handler
-[[gnu::used]] [[gnu::retain]] [[gnu::noreturn]] [[gnu::noinline]] void _start() {
+[[gnu::retain]] [[gnu::used]] [[gnu::noreturn]] [[gnu::noinline]] void __start() {
     initResets();
     initInterrupts();
     initCPUBasic();
@@ -538,30 +538,30 @@ void setupDMAs() {
     auto& chA = dma.channels[kDMAChannelA];
     update(&chA.ctrl, [](auto& _) {
         _.zero();
-        _->chainTo  = kDMAChannelB;
+        _->chainTo = kDMAChannelB;
         _->incrRead = true;
-        _->treqSel  = kHSTXDREQ;
+        _->treqSel = kHSTXDREQ;
         _->dataSize = DMA::DataSize::_32BIT;
-        _->enable   = true;
+        _->enable = true;
     });
-    chA.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
-    chA.readAddr   = uintptr_t(buf.words);
+    chA.writeAddr = uintptr_t(&hstx.fifo().fifoWrite);
+    chA.readAddr = uintptr_t(buf.words);
     chA.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
 
     auto& chB = dma.channels[kDMAChannelB];
     update(&chB.ctrl, [](auto& _) {
         _.zero();
-        _->chainTo  = kDMAChannelA;
+        _->chainTo = kDMAChannelA;
         _->incrRead = true;
-        _->treqSel  = kHSTXDREQ;
+        _->treqSel = kHSTXDREQ;
         _->dataSize = DMA::DataSize::_32BIT;
-        _->enable   = true;
+        _->enable = true;
     });
-    chB.writeAddr  = uintptr_t(&hstx.fifo().fifoWrite);
-    chB.readAddr   = uintptr_t(buf.words);
+    chB.writeAddr = uintptr_t(&hstx.fifo().fifoWrite);
+    chB.readAddr = uintptr_t(buf.words);
     chB.transCount = {.count = buf.count, .mode = DMA::Mode::NORMAL};
 
-    auto& irq  = rp2350::dma.irqRegs(0);
+    auto& irq = rp2350::dma.irqRegs(0);
     irq.status = (1u << kDMAChannelA) | (1u << kDMAChannelB); // clear flags
     irq.enable = (1u << kDMAChannelA) | (1u << kDMAChannelB);
 
@@ -569,8 +569,8 @@ void setupDMAs() {
     m33.clrPendIRQ(kIRQDMA0);
     m33.enableIRQ(kIRQDMA0);
 
-    thisFrame = ~0u;         // will increment to first frame (0)
-    nextLine  = kVTotal - 1; // will wrap back to 0, bumping frame
+    thisFrame = ~0u;        // will increment to first frame (0)
+    nextLine = kVTotal - 1; // will wrap back to 0, bumping frame
 
     setupDMAs();
     rp2350::dma.multiChanTrigger.channels = 1u << kDMAChannelA;

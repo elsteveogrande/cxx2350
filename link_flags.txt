@@ -6,5 +6,7 @@
 -g -Wl,--gdb-index
 -gsplit-dwarf
 -L build
--lrp2350
 -ffreestanding
+-fsanitize=undefined
+-fsanitize-trap=all
+-Oz

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <examples/config.h>
 #include <platform.h>
 #include <rp2350/common.h>
 #include <rp2350/gpio.h>
@@ -8,7 +7,7 @@
 #include <rp2350/m33.h>
 #include <rp2350/xoscpll.h>
 
-namespace rp2350::sys {
+namespace rp2350 {
 
 struct PanicContext {
     uint32_t sp;
@@ -39,7 +38,7 @@ struct PanicTX {
 
     static_assert(kGPIO < 32);
 
-    PanicTX() {
+    [[gnu::section(".systext")]] PanicTX() {
         sio.gpioOutEnbSet = (1u << kGPIO);
         sio.gpioOutSet = (1u << kGPIO);
 
@@ -58,16 +57,19 @@ struct PanicTX {
         for (auto i = 0; i < 20; i++) { delay(); }
     }
 
+    [[gnu::always_inline]]
     void delay() {
         xosc.count = kClocks;
         while (xosc.count) { __nop(); }
     }
 
+    [[gnu::always_inline]]
     void signal(bool x) {
         (x ? sio.gpioOutSet : sio.gpioOutClr) = 1u << kGPIO;
         delay();
     }
 
+    [[gnu::section(".systext")]]
     void txByte(uint8_t x) {
         // TX line will have already been high for some (sufficient) period.
         signal(0);
@@ -82,6 +84,7 @@ struct PanicTX {
         signal(1);
     }
 
+    [[gnu::section(".systext")]]
     friend PanicTX& operator<<(PanicTX& self, char c) {
         if (c == '\n') {
             self.txByte('\r');
@@ -92,11 +95,13 @@ struct PanicTX {
         return self;
     }
 
+    [[gnu::section(".systext")]]
     friend PanicTX& operator<<(PanicTX& self, char const* s) {
         while (s && *s) { self << *(s++); }
         return self;
     }
 
+    [[gnu::section(".systext")]]
     friend PanicTX& operator<<(PanicTX& self, uint32_t x) {
         constexpr static char const* kHex = "0123456789abcdef";
         self << kHex[(x >> 28) & 0x0f];
@@ -111,17 +116,25 @@ struct PanicTX {
     }
 };
 
+[[gnu::section(".systext")]]
 inline void delay1() {
     xosc.count = kXOSC / 1000;
     while (xosc.count) { __nop(); }
 }
 
+[[gnu::section(".systext")]]
 inline void delay(unsigned ms) {
     while (ms--) { delay1(); }
 }
 
-[[gnu::used]] [[gnu::noinline]] [[noreturn]]
-inline void panic(PanicContext const& cx) {
+} // namespace rp2350
+
+extern "C" {
+
+[[gnu::noinline]] [[noreturn]] [[gnu::section(".systext")]]
+inline void panic(rp2350::PanicContext const& cx) {
+    using namespace rp2350;
+
     __disableIRQs();
 
     constexpr static char const* RED = "\x1b[0;41;1;37m";
@@ -226,5 +239,4 @@ inline void panic(PanicContext const& cx) {
         }
     };
 }
-
-} // namespace rp2350::sys
+}

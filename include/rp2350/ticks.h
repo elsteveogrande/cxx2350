@@ -38,17 +38,18 @@ struct Ticks {
 };
 inline auto& ticks = *(Ticks*)(0x40108000);
 
+[[gnu::noinline]] [[gnu::retain]] [[gnu::used]] [[gnu::section(".systext")]]
 inline void initSystemTicks() {
     // p569: SDK as well as Arm CPU expect nominal 1uS system ticks
     ticks.proc0.control.enabled = false;
-    ticks.proc0.cycles.count    = 12;
+    ticks.proc0.cycles.count = 12;
     ticks.proc0.control.enabled = true;
     ticks.proc1.control.enabled = false;
-    ticks.proc1.cycles.count    = 12;
+    ticks.proc1.cycles.count = 12;
     ticks.proc1.control.enabled = true;
 
-    m33.rvr()         = 1000;
-    m33.csr().enable  = 1;
+    m33.rvr() = 1000;
+    m33.csr().enable = 1;
     m33.csr().tickInt = 1;
 }
 

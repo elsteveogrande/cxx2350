@@ -4,39 +4,11 @@
 
 .text
 
-.globl  _ZN6rp23503sys9hardFaultEv
+.section .systext
+.globl  _ZN6rp23507__panicEv
 .p2align 2
 .thumb_func
-_ZN6rp23503sys9hardFaultEv:
-    movs  r2, #0x48
-    b     _ZN6rp23503sys5panicEv
-
-.globl  _ZN6rp23503sys9memManageEv
-.p2align 2
-.thumb_func
-_ZN6rp23503sys9memManageEv:
-    movs  r2, #0x4d
-    b     _ZN6rp23503sys5panicEv
-
-.globl  _ZN6rp23503sys8busFaultEv
-.p2align 2
-.thumb_func
-_ZN6rp23503sys8busFaultEv:
-    movs  r2, #0x42
-    b     _ZN6rp23503sys5panicEv
-
-.globl  _ZN6rp23503sys10usageFaultEv
-.p2align 2
-.thumb_func
-_ZN6rp23503sys10usageFaultEv:
-    movs  r2, #0x55
-    b     _ZN6rp23503sys5panicEv
-
-.globl  _ZN6rp23503sys5panicEv
-.p2align 2
-.thumb_func
-.p2align 2
-_ZN6rp23503sys5panicEv:
+_ZN6rp23507__panicEv:
     @ Save registers into a `PanicContext` which we'll create on the stack
     @ and populate by pushing (in reverse field order).
     @
@@ -74,5 +46,5 @@ _ZN6rp23503sys5panicEv:
     mov   r0, sp
     ldr   r1, =__panic_sp   @ switch to our panic stack to ensure space
     mov   sp, r1
-    @ rp2350::sys::panic(PanicContext const&)
-    bl    _ZN6rp23503sys5panicERKNS0_12PanicContextE
+    @ rp2350::panic(PanicContext const&)
+    bl    _ZN6rp23505panicERKNS0_12PanicContextE
